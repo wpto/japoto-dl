@@ -4,6 +4,7 @@ go 1.17
 
 require (
 	github.com/levigross/grequests v0.0.0-20190908174114-253788527a1a
+	github.com/mitchellh/mapstructure v1.4.3
 	github.com/pkg/errors v0.9.1
 )
 

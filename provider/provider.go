@@ -2,21 +2,26 @@ package provider
 
 import (
 	"github.com/pgeowng/japoto-dl/model"
-	"github.com/pgeowng/japoto-dl/tasks"
+	"github.com/pgeowng/japoto-dl/provider/onsen"
 )
 
-type Provider interface {
+type ProviderInfo interface {
 	GetFeed() ([]model.Show, error)
-	GetShow()
+	// GetShow()
+}
+type Provider interface {
 	Download(model.Show) error
 }
 
 type Providers struct {
-	Onsen Provider
+	OnsenInfo ProviderInfo
+	Onsen     Provider
 }
 
-func NewProviders(tasks *tasks.Tasks) *Providers {
-	return Providers{
-		Onsen: NewOnsen(tasks),
+// func NewProviders(tasks *tasks.Tasks) *Providers {
+func NewProviders() *Providers {
+	return &Providers{
+		OnsenInfo: onsen.NewOnsenInfo(),
+		// Onsen:     onsen.NewOnsen(tasks),
 	}
 }
