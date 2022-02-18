@@ -112,3 +112,7 @@ func (ep *FeedRawEp) ShowId() string {
 func (ep *FeedRawEp) EpTitle() string {
 	return ep.Title
 }
+
+func (ep *FeedRawEp) PlaylistUrl() *string {
+	return ep.StreamingUrl
+}
