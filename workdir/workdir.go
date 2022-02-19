@@ -1,6 +1,7 @@
 package workdir
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -35,6 +36,7 @@ func (wd *Workdir) Save(fileName, fileBody string) error {
 }
 
 func (wd *Workdir) SaveRaw(fileName string, fileBody []byte) error {
+	fmt.Printf("writing %s\n", fileName)
 	wd.Ensure()
 	filePath := filepath.Join(wd.dir, fileName)
 	err := ioutil.WriteFile(filePath, fileBody, 0644)

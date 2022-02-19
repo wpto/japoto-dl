@@ -2,6 +2,8 @@ package onsen
 
 import (
 	"github.com/levigross/grequests"
+	"github.com/pgeowng/japoto-dl/helpers"
+	"github.com/pgeowng/japoto-dl/model"
 	"github.com/pgeowng/japoto-dl/tasks"
 	"github.com/pgeowng/japoto-dl/types"
 	"github.com/pkg/errors"
@@ -51,44 +53,92 @@ func (p *Onsen) Download(playlistUrl string) error {
 			return errors.Wrap(err, "onsen.dl.tsparse")
 		}
 
-		for _, key := range keys {
-			url, err := key.Url(tsaudioUrl)
-			if err != nil {
-				return errors.Wrap(err, "onsen.dl.keyurl")
+		total := len(keys) + len(audio)
+
+		files := make(chan model.File, total)
+		loaders := make(chan func() error)
+		loaded := make(chan error)
+		go helpers.EachLimit(loaders, loaded, 10)
+		go func() {
+			defer close(loaders)
+
+			for _, key := range keys {
+				loaders <- p.fetcher(tsaudioUrl, key, files)
 			}
 
-			body, err := p.loader.Raw(url, gopts)
-			if err != nil {
-				return errors.Wrap(err, "onsen.dl.keyget")
+			for _, au := range audio {
+				loaders <- p.fetcher(tsaudioUrl, au, files)
 			}
+		}()
 
-			key.SetBody(body)
+		savers := make(chan func() error)
+		saved := make(chan error)
+		go helpers.EachLimit(savers, saved, 100)
+		go func() {
+			defer close(savers)
+			for file := range files {
+				savers <- func(f model.File) func() error {
+					return func() error {
+						return p.saver(f)
+					}
+				}(file)
+			}
+		}()
 
-			err = p.tasks.AudioHLS.Validate(key)
+		errc := make(chan error)
+		go func() {
+			err = <-loaded
+			close(loaded)
+			close(files)
 			if err != nil {
-				return errors.Wrap(err, "onsen.dl.keyuse")
+				err = errors.Wrap(err, "onsen.dl.files_load")
+			}
+			errc <- err
+		}()
+
+		go func() {
+			err = <-saved
+			close(saved)
+			if err != nil {
+				err = errors.Wrap(err, "onsen.dl.files_save")
+			}
+			errc <- err
+		}()
+
+		for i := 0; i < 2; i++ {
+			err = <-errc
+			if err != nil {
+				return err
 			}
 		}
 
-		for _, au := range audio {
-			url, err := au.Url(tsaudioUrl)
-			if err != nil {
-				return errors.Wrap(err, "onsen.dl.keyurl")
-			}
-
-			body, err := p.loader.Raw(url, gopts)
-			if err != nil {
-				return errors.Wrap(err, "onsen.dl.keyget")
-			}
-
-			au.SetBody(body)
-
-			err = p.tasks.AudioHLS.Validate(au)
-			if err != nil {
-				return errors.Wrap(err, "onsen.dl.keyuse")
-			}
-		}
 	}
 
+	return nil
+}
+
+func (p *Onsen) fetcher(prefix string, file model.File, files chan model.File) func() error {
+	return func() error {
+		url, err := file.Url(prefix)
+		if err != nil {
+			return errors.Wrap(err, "loader.url")
+		}
+
+		body, err := p.loader.Raw(url, gopts)
+		if err != nil {
+			return errors.Wrap(err, "loader.raw")
+		}
+
+		file.SetBody(body)
+		files <- file
+
+		return nil
+	}
+}
+func (p *Onsen) saver(file model.File) error {
+	err := p.tasks.AudioHLS.Validate(file)
+	if err != nil {
+		return errors.Wrap(err, "loader.validate")
+	}
 	return nil
 }
