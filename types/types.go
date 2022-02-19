@@ -1,9 +1,11 @@
 package types
 
-import "github.com/levigross/grequests"
+type LoaderOpts struct {
+	Headers map[string]string
+}
 
 type Loader interface {
-	Text(url string, opts *grequests.RequestOptions) (*string, error)
-	JSON(url string, dest interface{}, opts *grequests.RequestOptions) error
-	Raw(url string, opts *grequests.RequestOptions) ([]byte, error)
+	Text(url string, opts *LoaderOpts) (*string, error)
+	JSON(url string, dest interface{}, opts *LoaderOpts) error
+	Raw(url string, opts *LoaderOpts) ([]byte, error)
 }

@@ -1,7 +1,6 @@
 package onsen
 
 import (
-	"github.com/levigross/grequests"
 	"github.com/pgeowng/japoto-dl/helpers"
 	"github.com/pgeowng/japoto-dl/model"
 	"github.com/pgeowng/japoto-dl/tasks"
@@ -10,15 +9,15 @@ import (
 )
 
 type Onsen struct {
-	loader types.Loader
-	tasks  *tasks.Tasks
+	dl    types.Loader
+	tasks *tasks.Tasks
 }
 
-func NewOnsen(loader types.Loader, tasks *tasks.Tasks) *Onsen {
-	return &Onsen{loader, tasks}
+func NewOnsen(dl types.Loader, tasks *tasks.Tasks) *Onsen {
+	return &Onsen{dl, tasks}
 }
 
-var gopts *grequests.RequestOptions = &grequests.RequestOptions{
+var gopts *types.LoaderOpts = &types.LoaderOpts{
 	Headers: map[string]string{
 		"Referer": "https://www.onsen.ag/",
 	},
@@ -26,7 +25,7 @@ var gopts *grequests.RequestOptions = &grequests.RequestOptions{
 
 func (p *Onsen) Download(playlistUrl string) error {
 
-	playlistBody, err := p.loader.Text(playlistUrl, gopts)
+	playlistBody, err := p.dl.Text(playlistUrl, gopts)
 	if err != nil {
 		return errors.Wrap(err, "onsen.dl.plget")
 	}
@@ -36,12 +35,16 @@ func (p *Onsen) Download(playlistUrl string) error {
 		return errors.Wrap(err, "onsen.dl.plparse")
 	}
 
+	if len(tsaudio) > 1 {
+		return errors.New("onsen.dl: tsaudio size > 1: not implemented")
+	}
+
 	for _, ts := range tsaudio {
 		tsaudioUrl, err := ts.Url(playlistUrl)
 		if err != nil {
 			return errors.Wrap(err, "onsen.dl.tsurl")
 		}
-		tsaudioBody, err := p.loader.Text(tsaudioUrl, gopts)
+		tsaudioBody, err := p.dl.Text(tsaudioUrl, gopts)
 		if err != nil {
 			return errors.Wrap(err, "onsen.dl.tsget")
 		}
@@ -63,11 +66,11 @@ func (p *Onsen) Download(playlistUrl string) error {
 			defer close(loaders)
 
 			for _, key := range keys {
-				loaders <- p.fetcher(tsaudioUrl, key, files)
+				loaders <- p.loader(tsaudioUrl, key, files)
 			}
 
 			for _, au := range audio {
-				loaders <- p.fetcher(tsaudioUrl, au, files)
+				loaders <- p.loader(tsaudioUrl, au, files)
 			}
 		}()
 
@@ -114,17 +117,22 @@ func (p *Onsen) Download(playlistUrl string) error {
 
 	}
 
+	err = p.tasks.AudioHLS.Mux()
+	if err != nil {
+		return errors.Wrap(err, "onsen.dl.mux")
+	}
+
 	return nil
 }
 
-func (p *Onsen) fetcher(prefix string, file model.File, files chan model.File) func() error {
+func (p *Onsen) loader(prefix string, file model.File, files chan model.File) func() error {
 	return func() error {
 		url, err := file.Url(prefix)
 		if err != nil {
 			return errors.Wrap(err, "loader.url")
 		}
 
-		body, err := p.loader.Raw(url, gopts)
+		body, err := p.dl.Raw(url, gopts)
 		if err != nil {
 			return errors.Wrap(err, "loader.raw")
 		}

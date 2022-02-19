@@ -23,7 +23,6 @@ type Providers struct {
 	Onsen Provider
 }
 
-// func NewProviders(tasks *tasks.Tasks) *Providers {
 func NewProviders(loader types.Loader, tasks *tasks.Tasks) *Providers {
 	return &Providers{
 		Onsen: onsen.NewOnsen(loader, tasks),
