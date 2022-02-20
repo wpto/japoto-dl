@@ -64,12 +64,12 @@ func Extract(streamingUrl string, showId string) (*Guess, error) {
 	epNumStr := matchRest[5]
 
 	if len(dateStr) > 0 { // assuming yymmdd
-		reText := fmt.Sprintf(`^(%d)0*(%d)0*([1-9]+)$`, year%100, month)
+		reText := fmt.Sprintf(`^(%d)0*(%d)0*([1-9]\d*)$`, year%100, month)
 		reDate := regexp.MustCompile(reText)
 
 		matchDate := reDate.FindStringSubmatch(dateStr)
 		if matchDate == nil {
-			return nil, errors.Errorf("cant parse date(%s) based on %d,%d", dateStr, year, month)
+			return nil, errors.Errorf("cant parse date(%s) based on %d,%d", dateStr, year%100, month)
 		}
 
 		yyStr := matchDate[1]

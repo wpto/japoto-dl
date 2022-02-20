@@ -1,9 +1,13 @@
 package onsen
 
 import (
+	"fmt"
 	"reflect"
+	"regexp"
+	"strconv"
 
 	"github.com/pgeowng/japoto-dl/model"
+	"github.com/pkg/errors"
 )
 
 type Performer struct {
@@ -74,7 +78,7 @@ type FeedRawEp struct {
 	OngenId        int     `mapstructure:"ongen_id"`
 	Premium        bool    `mapstructure:"premium"`
 	Free           bool    `mapstructure:"free"`
-	DeliveryDate   string  `mapstructure:"delivery_date"`
+	DeliveryDate   *string `mapstructure:"delivery_date"`
 	Movie          bool    `mapstructure:"movie"`
 	PosterImageUrl string  `mapstructure:"poster_image_url"`
 	StreamingUrl   *string `mapstructure:"streaming_url"`
@@ -89,10 +93,6 @@ type FeedRawEp struct {
 	showRef *FeedRawShow
 }
 
-func (show *FeedRawShow) ShowId() string {
-	return show.DirectoryName
-}
-
 func (show *FeedRawShow) GetEpisodes() []model.Episode {
 	result := make([]model.Episode, 0)
 
@@ -105,8 +105,90 @@ func (show *FeedRawShow) GetEpisodes() []model.Episode {
 	return result
 }
 
-func (ep *FeedRawEp) ShowId() string {
-	return ep.showRef.ShowId()
+func (show *FeedRawShow) Artists() []string {
+	result := []string{}
+
+	for _, p := range show.Performers {
+		result = append(result, p.Name)
+	}
+
+	return result
+}
+
+func (show *FeedRawShow) ShowId() string {
+	return show.DirectoryName
+}
+
+func (show *FeedRawShow) ShowTitle() string {
+	return show.Title
+}
+
+func (ep *FeedRawEp) Artists() []string {
+	result := []string{}
+
+	result = append(result, ep.showRef.Artists()...)
+
+	for _, p := range ep.Guests {
+		result = append(result, p.Name)
+	}
+
+	return result
+}
+
+func (ep *FeedRawEp) Date() (*model.Date, error) {
+	if ep.StreamingUrl == nil {
+		return nil, errors.New("you can't call ep.Date() on episode that is can't be loaded. onsen specific limitation")
+	}
+
+	result, err := Extract(*ep.StreamingUrl, ep.ShowId())
+
+	if err != nil {
+		return nil, errors.Wrap(err, fmt.Sprintf("onsen.date: bad format for (%s, %s)", *ep.StreamingUrl, ep.ShowId()))
+	}
+
+	if result.DateD != 0 && result.DateM != 0 && result.DateY != 0 {
+		return &model.Date{
+			Year:  result.DateY,
+			Month: result.DateM,
+			Day:   result.DateD,
+		}, nil
+	}
+
+	if result.DateY == 0 {
+		return nil, errors.New("onsen.date: cant resolve without year")
+	}
+
+	if ep.DeliveryDate == nil {
+		return nil, errors.New("onsen.date: undefined")
+	}
+
+	reText := `(\d+)/(\d+)`
+	reDate := regexp.MustCompile(reText)
+
+	match := reDate.FindStringSubmatch(*ep.DeliveryDate)
+	if match == nil {
+		return nil, errors.Errorf("onsen.date: bad delivery_date format: %s", *ep.DeliveryDate)
+	}
+
+	mm, err := strconv.ParseInt(match[1], 10, 0)
+	if err != nil {
+		return nil, errors.Wrap(err, "onsen.date.delivery_month")
+	}
+
+	if int(mm) != result.DateM {
+		return nil, errors.Errorf("onsen.date: month mismatch %s and %s", *ep.DeliveryDate, *ep.StreamingUrl)
+	}
+
+	dd, err := strconv.ParseInt(match[2], 10, 0)
+	if err != nil {
+		return nil, errors.Wrap(err, "onsen.date.delivery_month")
+	}
+
+	return &model.Date{
+		Year:  result.DateY,
+		Month: result.DateM,
+		Day:   int(dd),
+	}, nil
 }
 
 func (ep *FeedRawEp) EpTitle() string {
@@ -115,4 +197,12 @@ func (ep *FeedRawEp) EpTitle() string {
 
 func (ep *FeedRawEp) PlaylistUrl() *string {
 	return ep.StreamingUrl
+}
+
+func (ep *FeedRawEp) ShowId() string {
+	return ep.showRef.ShowId()
+}
+
+func (ep *FeedRawEp) ShowTitle() string {
+	return ep.showRef.ShowTitle()
 }

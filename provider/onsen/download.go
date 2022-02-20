@@ -117,11 +117,6 @@ func (p *Onsen) Download(playlistUrl string) error {
 
 	}
 
-	err = p.tasks.AudioHLS.Mux()
-	if err != nil {
-		return errors.Wrap(err, "onsen.dl.mux")
-	}
-
 	return nil
 }
 
