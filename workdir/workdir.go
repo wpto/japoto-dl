@@ -1,48 +1,48 @@
 package workdir
 
 import (
-	"fmt"
-	"io/ioutil"
-	"os"
-	"path/filepath"
-
+	"github.com/pgeowng/japoto-dl/workdir/muxer"
+	"github.com/pgeowng/japoto-dl/workdir/wd"
 	"github.com/pkg/errors"
 )
 
-type Workdir struct {
-	dir string
+type Muxer interface {
+	Mux(errc chan<- error)
 }
 
-func NewWorkdir(prefix, uniqueSalt string) *Workdir {
-	dir := filepath.Join(prefix, uniqueSalt)
-	return &Workdir{dir}
+type WorkdirHLS interface {
+	SavePlaylist(playlistBody string) error
+	Save(fileName, fileBody string) error
+	SaveRaw(fileName string, fileBody []byte) error
 }
 
-func (wd *Workdir) Ensure() {
-	err := os.MkdirAll(wd.dir, 0755)
-	if err != nil {
-		panic("wd: cant ensure folder " + wd.dir)
+type WorkdirHLSMuxer interface {
+	Mux() error
+}
+
+type WorkdirHLSImpl struct {
+	wd.Wd
+	playlistName string
+	muxer        muxer.MuxerHLS
+}
+
+func NewWorkdirHLSImpl(wd *wd.Wd, muxer muxer.MuxerHLS, playlistName string) *WorkdirHLSImpl {
+	return &WorkdirHLSImpl{
+		Wd:           *wd,
+		playlistName: playlistName,
+		muxer:        muxer,
 	}
 }
 
-func (wd *Workdir) Save(fileName, fileBody string) error {
-	wd.Ensure()
-	filePath := filepath.Join(wd.dir, fileName)
-	err := ioutil.WriteFile(filePath, []byte(fileBody), 0644)
-	if err != nil {
-		return errors.Wrap(err, "wd.save("+filePath+")")
-	}
-	return nil
+func (wd *WorkdirHLSImpl) SavePlaylist(playlistBody string) error {
+	err := wd.Save(wd.playlistName, playlistBody)
+	return err
 }
 
-func (wd *Workdir) SaveRaw(fileName string, fileBody []byte) error {
-	fmt.Printf("writing %s\n", fileName)
-	wd.Ensure()
-	filePath := filepath.Join(wd.dir, fileName)
-	err := ioutil.WriteFile(filePath, fileBody, 0644)
+func (wd *WorkdirHLSImpl) Mux() error {
+	err := wd.muxer.Mux(wd.Resolve(wd.playlistName))
 	if err != nil {
-		return errors.Wrap(err, "wd.save("+filePath+")")
+		return errors.Wrap(err, "wdhlsimpl.mux")
 	}
-
 	return nil
 }

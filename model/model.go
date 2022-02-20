@@ -1,21 +1,26 @@
 package model
 
 import (
+	"fmt"
 	"net/url"
 
 	"github.com/pkg/errors"
 )
 
 type Episode interface {
+	Artists() []string
+	Date() (*Date, error)
 	EpTitle() string
-	// Date() string
-	ShowId() string
 	PlaylistUrl() *string
+	ShowId() string
+	ShowTitle() string
 }
 
 type Show interface {
-	ShowId() string
 	GetEpisodes() []Episode
+	Artists() []string
+	ShowId() string
+	ShowTitle() string
 }
 
 type TSAudio interface {
@@ -81,4 +86,14 @@ func (f *File) BodyString() string {
 		panic(errors.New("bodystr was not set"))
 	}
 	return *f.bodyStr
+}
+
+type Date struct {
+	Year  int
+	Month int
+	Day   int
+}
+
+func (d *Date) String() string {
+	return fmt.Sprintf("%02d%02d%02d", d.Year%100, d.Month, d.Day)
 }
