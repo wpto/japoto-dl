@@ -10,11 +10,10 @@ import (
 )
 
 type Guess struct {
-	DateY   int
-	DateM   int
-	DateD   int
-	EpNum   int
-	Special bool
+	DateY int
+	DateM int
+	DateD int
+	Num   string
 }
 
 var mistakes map[string][]string = map[string][]string{
@@ -50,11 +49,10 @@ func Extract(streamingUrl string, showId string) (*Guess, error) {
 
 	rest := matchYM[3]
 	result := Guess{
-		DateY:   int(year),
-		DateM:   int(month),
-		DateD:   0,
-		EpNum:   0,
-		Special: false,
+		DateY: int(year),
+		DateM: int(month),
+		DateD: 0,
+		Num:   "",
 	}
 
 	if !strings.HasPrefix(rest, showId) {
@@ -77,15 +75,14 @@ func Extract(streamingUrl string, showId string) (*Guess, error) {
 
 	rest = strings.TrimPrefix(rest, showId)
 
-	reRest := regexp.MustCompile(`(\d{5,7}?)?([^-_]{4}|[^-_]{8})(-|_)(sp)?(\d*)`)
+	reRest := regexp.MustCompile(`(\d{5,7}?)?([^-_]{4}|[^-_]{8})(?:-|_)(.+).mp4`)
 	matchRest := reRest.FindStringSubmatch(rest)
 	if matchRest == nil {
 		return nil, errors.Errorf("unexpected rest: %s", rest)
 	}
 
 	dateStr := matchRest[1]
-	spStr := matchRest[4]
-	epNumStr := matchRest[5]
+	result.Num = matchRest[3]
 
 	if len(dateStr) > 0 { // assuming yymmdd
 		reText := fmt.Sprintf(`^(%d)0*(%d)0*([1-9]\d*)$`, year%100, month)
@@ -116,25 +113,6 @@ func Extract(streamingUrl string, showId string) (*Guess, error) {
 
 		result.DateD = int(dd)
 	}
-
-	if len(spStr) > 0 {
-		if spStr == "sp" {
-			result.Special = true
-		} else {
-			return nil, errors.New("sp parse error")
-		}
-	}
-
-	var epNum int64 = 0
-
-	if len(epNumStr) > 0 {
-		epNum, err = strconv.ParseInt(epNumStr, 10, 0)
-		if err != nil {
-			return nil, errors.Wrap(err, "epNum:")
-		}
-	}
-
-	result.EpNum = int(epNum)
 
 	return &result, nil
 }

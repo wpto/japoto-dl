@@ -9,8 +9,7 @@ type Case struct {
 	yy     int
 	mm     int
 	dd     int
-	num    int
-	sp     bool
+	num    string
 }
 
 func TestExtract(t *testing.T) {
@@ -19,62 +18,72 @@ func TestExtract(t *testing.T) {
 			"ore.ski",
 			false,
 			2020, 3, 26,
-			16, false,
+			"16",
 		},
 		{"/202201/fujita-pLs1S-04.mp4", "fujita-p",
 			false,
 			2022, 1, 0,
-			4, false,
+			"04",
 		},
 		{"/202111/gurepap21114av8u-55.mp4", "gurepap",
 			false,
 			2021, 11, 4,
-			55, false,
+			"55",
 		},
 		{"/202202/maho7220209sbz4-13.mp4", "maho7",
 			false,
 			2022, 2, 9,
-			13, false,
+			"13",
 		},
 		{"/202112/g123211228iwb7-06.mp4", "g123",
 			false,
 			2021, 12, 28,
-			6, false,
+			"06",
 		},
 		{"/202201/86220121z9nm-23.mp4", "86",
 			false,
 			2022, 1, 21,
-			23, false,
+			"23",
 		},
 		{"/202202/fujita-p2200204nNE8-91.mp4", "fujita-p",
 			false,
 			2022, 2, 4,
-			91, false,
+			"91",
 		},
 		{"/202110/fujita211022adv7yd4g-97.mp4", "fujita",
 			false,
 			2021, 10, 22,
-			97, false,
+			"97",
 		},
 		{"/202202/aniradiaward220204kd3y-sp.mp4", "aniradiaward",
 			false,
 			2022, 2, 4,
-			0, true,
+			"sp",
 		},
 		{"/202109/fuchigamimai210921gvx0-sp2.mp4", "fuchigamimai",
 			false,
 			2021, 9, 21,
-			2, true,
+			"sp2",
 		},
 		{"/202202/techno-roid220220fryj-10.mp4", "techno-roid",
 			false,
 			2022, 2, 20,
-			10, false,
+			"10",
 		},
 		{"/202202/gaikotukishi220218ue7g-02.mp4/playlist.m3u8", "gaikotsukishi",
 			false,
 			2022, 2, 18,
-			2, false,
+			"02",
+		},
+		{"/202202/d220226l3md-16-sp3.mp4/playlist.m3u8", "d",
+			false,
+			2022, 2, 26,
+			"16-sp3",
+		},
+		{"/202202/nkm220208dx7e-41-2.mp4/playlist.m3u8", "nkm",
+			false,
+			2022, 2, 8,
+			"41-2",
 		},
 	}
 
@@ -96,16 +105,12 @@ func TestExtract(t *testing.T) {
 				t.Logf("wrong month %d != %d", result.DateM, c.mm)
 				flag = true
 			}
-			if result.EpNum != c.num {
-				t.Logf("wrong epnum %d != %d", result.EpNum, c.num)
-				flag = true
-			}
-			if result.Special != c.sp {
-				t.Logf("wrong sp %v != %v", result.Special, c.sp)
+			if result.Num != c.num {
+				t.Logf("wrong num %s != %s", result.Num, c.num)
 				flag = true
 			}
 			if result.DateD != c.dd {
-				t.Logf("wrong day %v != %v", result.Special, c.sp)
+				t.Logf("wrong day %v != %v", result.DateD, c.dd)
 				flag = true
 			}
 			if flag {
