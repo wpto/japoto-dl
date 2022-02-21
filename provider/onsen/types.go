@@ -135,6 +135,10 @@ func (ep *FeedRawEp) Artists() []string {
 	return result
 }
 
+func (ep *FeedRawEp) CanLoad() bool {
+	return ep.StreamingUrl != nil
+}
+
 func (ep *FeedRawEp) Date() (*model.Date, error) {
 	if ep.StreamingUrl == nil {
 		return nil, errors.New("you can't call ep.Date() on episode that is can't be loaded. onsen specific limitation")

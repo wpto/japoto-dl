@@ -11,12 +11,11 @@ import (
 
 type Wd struct {
   dir string
-  // Muxer Muxer
 }
 
-func NewWd(prefix, uniqueSalt string) *Wd {
-  dir := filepath.Join(prefix, uniqueSalt)
-  return &Wd{dir} //Muxer}
+func NewWd(prefix, salt string) *Wd {
+  dir := filepath.Join(prefix, salt)
+  return &Wd{dir}
 }
 
 func (wd *Wd) Resolve(filePath string) string {

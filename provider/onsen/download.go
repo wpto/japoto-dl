@@ -3,34 +3,30 @@ package onsen
 import (
 	"github.com/pgeowng/japoto-dl/helpers"
 	"github.com/pgeowng/japoto-dl/model"
-	"github.com/pgeowng/japoto-dl/tasks"
-	"github.com/pgeowng/japoto-dl/types"
 	"github.com/pkg/errors"
 )
 
-type Onsen struct {
-	dl    types.Loader
-	tasks *tasks.Tasks
-}
-
-func NewOnsen(dl types.Loader, tasks *tasks.Tasks) *Onsen {
-	return &Onsen{dl, tasks}
-}
-
-var gopts *types.LoaderOpts = &types.LoaderOpts{
+var gopts *model.LoaderOpts = &model.LoaderOpts{
 	Headers: map[string]string{
 		"Referer": "https://www.onsen.ag/",
 	},
 }
 
-func (p *Onsen) Download(playlistUrl string) error {
+func (ep *FeedRawEp) Download(dl model.Loader, tasks model.Tasks) error {
+	hls := tasks.AudioHLS()
 
-	playlistBody, err := p.dl.Text(playlistUrl, gopts)
+	if ep.StreamingUrl == nil {
+		return errors.New("onsen.dl.plget: cant be loaded")
+	}
+
+	playlistUrl := *ep.StreamingUrl
+
+	playlistBody, err := dl.Text(playlistUrl, gopts)
 	if err != nil {
 		return errors.Wrap(err, "onsen.dl.plget")
 	}
 
-	tsaudio, err := p.tasks.AudioHLS.Playlist(*playlistBody)
+	tsaudio, err := hls.Playlist(*playlistBody)
 	if err != nil {
 		return errors.Wrap(err, "onsen.dl.plparse")
 	}
@@ -44,14 +40,14 @@ func (p *Onsen) Download(playlistUrl string) error {
 		if err != nil {
 			return errors.Wrap(err, "onsen.dl.tsurl")
 		}
-		tsaudioBody, err := p.dl.Text(tsaudioUrl, gopts)
+		tsaudioBody, err := dl.Text(tsaudioUrl, gopts)
 		if err != nil {
 			return errors.Wrap(err, "onsen.dl.tsget")
 		}
 
 		ts.SetBodyString(tsaudioBody)
 
-		keys, audio, err := p.tasks.AudioHLS.TSAudio(ts)
+		keys, audio, err := hls.TSAudio(ts)
 		if err != nil {
 			return errors.Wrap(err, "onsen.dl.tsparse")
 		}
@@ -66,11 +62,11 @@ func (p *Onsen) Download(playlistUrl string) error {
 			defer close(loaders)
 
 			for _, key := range keys {
-				loaders <- p.loader(tsaudioUrl, key, files)
+				loaders <- loader(dl, tsaudioUrl, key, files)
 			}
 
 			for _, au := range audio {
-				loaders <- p.loader(tsaudioUrl, au, files)
+				loaders <- loader(dl, tsaudioUrl, au, files)
 			}
 		}()
 
@@ -82,7 +78,7 @@ func (p *Onsen) Download(playlistUrl string) error {
 			for file := range files {
 				savers <- func(f model.File) func() error {
 					return func() error {
-						return p.saver(f)
+						return saver(hls, f)
 					}
 				}(file)
 			}
@@ -120,14 +116,14 @@ func (p *Onsen) Download(playlistUrl string) error {
 	return nil
 }
 
-func (p *Onsen) loader(prefix string, file model.File, files chan model.File) func() error {
+func loader(dl model.Loader, prefix string, file model.File, files chan model.File) func() error {
 	return func() error {
 		url, err := file.Url(prefix)
 		if err != nil {
 			return errors.Wrap(err, "loader.url")
 		}
 
-		body, err := p.dl.Raw(url, gopts)
+		body, err := dl.Raw(url, gopts)
 		if err != nil {
 			return errors.Wrap(err, "loader.raw")
 		}
@@ -138,8 +134,8 @@ func (p *Onsen) loader(prefix string, file model.File, files chan model.File) fu
 		return nil
 	}
 }
-func (p *Onsen) saver(file model.File) error {
-	err := p.tasks.AudioHLS.Validate(file)
+func saver(hls model.AudioHLS, file model.File) error {
+	err := hls.Validate(file)
 	if err != nil {
 		return errors.Wrap(err, "loader.validate")
 	}

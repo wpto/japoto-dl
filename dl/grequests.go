@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/levigross/grequests"
-	"github.com/pgeowng/japoto-dl/types"
+	"github.com/pgeowng/japoto-dl/model"
 	"github.com/pkg/errors"
 )
 
@@ -16,7 +16,7 @@ func NewGrequests() *dlGrequests {
 }
 
 // options should me separated from code...
-func (dl *dlGrequests) Text(url string, opts *types.LoaderOpts) (*string, error) {
+func (dl *dlGrequests) Text(url string, opts *model.LoaderOpts) (*string, error) {
 	res, err := retryGet(url, opts)
 	if err != nil {
 		return nil, errors.Wrap(err, "get")
@@ -28,7 +28,7 @@ func (dl *dlGrequests) Text(url string, opts *types.LoaderOpts) (*string, error)
 	return &str, nil
 }
 
-func (dl *dlGrequests) JSON(url string, dest interface{}, opts *types.LoaderOpts) error {
+func (dl *dlGrequests) JSON(url string, dest interface{}, opts *model.LoaderOpts) error {
 	res, err := retryGet(url, opts)
 	if err != nil {
 		return errors.Wrap(err, "get")
@@ -46,7 +46,7 @@ func (dl *dlGrequests) JSON(url string, dest interface{}, opts *types.LoaderOpts
 	return nil
 }
 
-func (dl *dlGrequests) Raw(url string, opts *types.LoaderOpts) ([]byte, error) {
+func (dl *dlGrequests) Raw(url string, opts *model.LoaderOpts) ([]byte, error) {
 	res, err := retryGet(url, opts)
 	if err != nil {
 		return nil, errors.Wrap(err, "get")
@@ -59,9 +59,9 @@ func (dl *dlGrequests) Raw(url string, opts *types.LoaderOpts) ([]byte, error) {
 	return res.Bytes(), nil
 }
 
-func retryGet(url string, opts *types.LoaderOpts) (*grequests.Response, error) {
+func retryGet(url string, opts *model.LoaderOpts) (*grequests.Response, error) {
 	gopts := &grequests.RequestOptions{}
-	times := types.LoaderOptsDefault.Timeouts
+	times := model.LoaderOptsDefault.Timeouts
 
 	if opts != nil {
 		if opts.Headers != nil {

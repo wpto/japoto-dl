@@ -6,18 +6,16 @@ import (
 	"github.com/pgeowng/japoto-dl/workdir"
 )
 
-type AudioHLS interface {
-	Playlist(body string) (tsaudio []model.File, err error)
-	TSAudio(tsaudio model.File) (keys []model.File, audio []model.File, err error)
-	Validate(file model.File) error
-}
-
 type Tasks struct {
-	AudioHLS AudioHLS
+	ahls model.AudioHLS
 }
 
-func NewTasks(workdirHLS workdir.WorkdirHLS) *Tasks {
+func (t *Tasks) AudioHLS() model.AudioHLS {
+	return t.ahls
+}
+
+func NewTasks(workdirHLS workdir.WorkdirHLS) model.Tasks {
 	return &Tasks{
-		AudioHLS: audiohls.NewAudioHLSImpl(workdirHLS),
+		ahls: audiohls.NewAudioHLSImpl(workdirHLS),
 	}
 }

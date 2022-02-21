@@ -9,6 +9,8 @@ import (
 
 type Episode interface {
 	Artists() []string
+	CanLoad() bool
+	Download(dl Loader, tasks Tasks) error
 	Date() (*Date, error)
 	EpTitle() string
 	PlaylistUrl() *string

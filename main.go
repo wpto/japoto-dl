@@ -7,11 +7,18 @@ import (
 
 	"github.com/pgeowng/japoto-dl/dl"
 	"github.com/pgeowng/japoto-dl/provider"
+	"github.com/pgeowng/japoto-dl/tasks"
+	"github.com/pgeowng/japoto-dl/workdir"
+	"github.com/pgeowng/japoto-dl/workdir/muxer"
+	"github.com/pgeowng/japoto-dl/workdir/wd"
 )
 
 func main() {
+
+	logger := log.Default()
+
 	ddl := dl.NewGrequests()
-	providersInfo := provider.NewProvidersInfo(ddl)
+	providersInfo := provider.NewProviders(ddl)
 
 	shows, err := providersInfo.Onsen.GetFeed()
 	if err != nil {
@@ -23,42 +30,47 @@ func main() {
 	for _, show := range shows {
 		eps := show.GetEpisodes()
 		for _, ep := range eps {
-			url := ep.PlaylistUrl()
-			if url != nil {
-				// wd1 := wd.NewWd("./.cache/", "fasqwge")
-				date, err := ep.Date()
-				if err != nil {
-					fmt.Println(err)
-					fmt.Printf("%#v\n", ep)
-					return
-				}
-				tags := map[string]string{
-					"title":  strings.Join([]string{date.String(), ep.ShowId(), ep.EpTitle(), ep.ShowTitle()}, " "),
-					"artist": strings.Join(ep.Artists(), " "),
-					"album":  ep.ShowTitle(),
-					"track":  date.String(),
-				}
-				fmt.Printf("%#v\n", tags)
-				// mux1 := muxer.NewMuxerHLS("./file.mp3", nil, tags)
-				// workdirHLS := workdir.NewWorkdirHLSImpl(wd1, mux1, "playlist.m3u8")
-				// tasks := tasks.NewTasks(workdirHLS)
-				// providers := provider.NewProviders(ddl, tasks)
-				// err = providers.Onsen.Download(*url)
-				// if err != nil {
-				// 	fmt.Println(err)
-				// 	return
-				// }
-				// err = workdirHLS.Mux()
-				// if err != nil {
-				// 	fmt.Println(err)
-				// 	return
-				// }
-				// return
+			canLoad := ep.CanLoad()
+
+			if !canLoad {
+				logger.Printf("%s - cant load - skipping...", ep.ShowId())
+				break
 			}
+
+			date, err := ep.Date()
+			if err != nil {
+				fmt.Println(err)
+				fmt.Printf("%#v\n", ep)
+				return
+			}
+
+			tags := map[string]string{
+				"title":  strings.Join([]string{date.String(), ep.ShowId(), ep.EpTitle(), ep.ShowTitle()}, " "),
+				"artist": strings.Join(ep.Artists(), " "),
+				"album":  ep.ShowTitle(),
+				"track":  date.String(),
+			}
+
+			ffm := muxer.NewFFMpegHLS("./output.mp3", nil, tags)
+			wd1 := wd.NewWd("./.cache", "salt")
+
+			wdHLS := workdir.NewWorkdirHLSImpl(wd1, ffm, "playlist.m3u8")
+			t := tasks.NewTasks(wdHLS)
+
+			err = ep.Download(ddl, t)
+			if err != nil {
+				logger.Printf("skipping... loading error: %v", err)
+				break
+			}
+
+			// err = wdHLS.Mux()
+			// if err != nil {
+			// 	fmt.Println(err)
+			// 	return
+			// }
+
 			fmt.Printf("%s ", ep.EpTitle())
 		}
 	}
-
-	// log.Printf("%#v\n", result)
 
 }

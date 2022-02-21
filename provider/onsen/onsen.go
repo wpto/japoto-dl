@@ -1,11 +1,11 @@
 package onsen
 
-import "github.com/pgeowng/japoto-dl/types"
+import "github.com/pgeowng/japoto-dl/model"
 
-type OnsenInfo struct {
-	loader types.Loader
+type Onsen struct {
+	loader model.Loader
 }
 
-func NewOnsenInfo(loader types.Loader) *OnsenInfo {
-	return &OnsenInfo{loader}
+func NewOnsen(loader model.Loader) *Onsen {
+	return &Onsen{loader}
 }

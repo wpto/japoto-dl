@@ -1,13 +1,12 @@
 package workdir
 
 import (
-	"github.com/pgeowng/japoto-dl/workdir/muxer"
 	"github.com/pgeowng/japoto-dl/workdir/wd"
 	"github.com/pkg/errors"
 )
 
-type Muxer interface {
-	Mux(errc chan<- error)
+type MuxerHLS interface {
+	Mux(inputPath string) error
 }
 
 type WorkdirHLS interface {
@@ -23,10 +22,10 @@ type WorkdirHLSMuxer interface {
 type WorkdirHLSImpl struct {
 	wd.Wd
 	playlistName string
-	muxer        muxer.MuxerHLS
+	muxer        MuxerHLS
 }
 
-func NewWorkdirHLSImpl(wd *wd.Wd, muxer muxer.MuxerHLS, playlistName string) *WorkdirHLSImpl {
+func NewWorkdirHLSImpl(wd *wd.Wd, muxer MuxerHLS, playlistName string) *WorkdirHLSImpl {
 	return &WorkdirHLSImpl{
 		Wd:           *wd,
 		playlistName: playlistName,

@@ -8,7 +8,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (p *OnsenInfo) GetFeed() ([]model.Show, error) {
+func (p *Onsen) GetFeed() ([]model.Show, error) {
 	mapObj := make([]map[string]interface{}, 0)
 	err := p.loader.JSON("https://onsen.ag/web_api/programs/", &mapObj, nil)
 	if err != nil {

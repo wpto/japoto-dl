@@ -1,4 +1,4 @@
-package types
+package model
 
 type LoaderOpts struct {
 	Headers  map[string]string
