@@ -8,25 +8,28 @@ import (
 	"github.com/pkg/errors"
 )
 
+type MuxerHLS interface {
+	Mux(inputPath string, imagePath *string) error
+}
+
 type FFMpegHLS struct {
 	outputPath string
-	imagePath  *string
 	tags       map[string]string
 }
 
-func NewFFMpegHLS(outputPath string, imagePath *string, tags map[string]string) *FFMpegHLS {
-	return &FFMpegHLS{outputPath, imagePath, tags}
+func NewFFMpegHLS(outputPath string, tags map[string]string) *FFMpegHLS {
+	return &FFMpegHLS{outputPath, tags}
 }
 
-func (m *FFMpegHLS) Mux(inputPath string) error {
+func (m *FFMpegHLS) Mux(inputPath string, imagePath *string) error {
 	result := []string{}
 
 	result = append(result, "-allowed_extensions", "ALL")
 	result = append(result, "-i", inputPath)
-	if m.imagePath == nil {
+	if imagePath == nil {
 		result = append(result, "-vn")
 	} else {
-		result = append(result, "-i", *m.imagePath)
+		result = append(result, "-i", *imagePath)
 		result = append(result, "-map", "0", "-map", "1:0")
 		result = append(result, "-vc")
 	}

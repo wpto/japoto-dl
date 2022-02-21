@@ -49,10 +49,14 @@ func main() {
 				"track":  date.String(),
 			}
 
-			ffm := muxer.NewFFMpegHLS("./output.mp3", nil, tags)
+			ffm := muxer.NewFFMpegHLS("./output.mp3", tags)
 			wd1 := wd.NewWd("./.cache", "salt")
 
-			wdHLS := workdir.NewWorkdirHLSImpl(wd1, ffm, "playlist.m3u8")
+			wdHLS := workdir.NewWorkdir(wd1, ffm, map[string]string{
+				"playlist": "playlist.m3u8",
+				"image":    "image",
+			})
+
 			t := tasks.NewTasks(wdHLS)
 
 			err = ep.Download(ddl, t)
@@ -72,3 +76,15 @@ func main() {
 	}
 
 }
+
+// func LoadImage(dl model.Loader, wd workdir.Workdir, url string, fileName string) (string, error) {
+// 	body, err := dl.Raw(url, nil)
+// 	if err != nil {
+// 		return "", errors.Wrap(err, "loadimage")
+// 	}
+
+// 	wd.SaveRaw(fileName, body)
+// 	if err != nil {
+// 		return "", errors.Wrap(err, "loadimage")
+// 	}
+// }

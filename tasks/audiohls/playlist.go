@@ -31,7 +31,7 @@ func (a *AudioHLSImpl) Playlist(playlistText string) (tsaudio []model.File, err 
 		fmt.Println(playlistText)
 	}
 
-	err = a.workdir.SavePlaylist(myPlaylistText)
+	err = a.workdir.SaveNamed("playlist", myPlaylistText)
 	if err != nil {
 		return nil, err
 	}
