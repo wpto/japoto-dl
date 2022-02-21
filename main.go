@@ -14,7 +14,6 @@ import (
 )
 
 func main() {
-
 	logger := log.Default()
 
 	ddl := dl.NewGrequests()
@@ -26,7 +25,6 @@ func main() {
 		return
 	}
 
-	// fmt.Println("len", len(shows))
 	for _, show := range shows {
 		eps := show.GetEpisodes()
 		for _, ep := range eps {
