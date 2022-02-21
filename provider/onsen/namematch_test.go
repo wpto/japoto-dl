@@ -14,7 +14,6 @@ type Case struct {
 }
 
 func TestExtract(t *testing.T) {
-
 	cases := []Case{
 		{"https://onsen-ma3phlsvod.sslcs.cdngc.net/onsen-ma3pvod/_definst_/202003/ore.ski200326l3md-16.mp4/playlist.m3u8",
 			"ore.ski",

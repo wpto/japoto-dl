@@ -17,8 +17,18 @@ type Guess struct {
 	Special bool
 }
 
+var mistakes map[string][]string = map[string][]string{
+	"gaikotsukishi":   {"gaikotukishi"},
+	"sega_girls":      {"segagirls"},
+	"mushinobu_radio": {"mushinoburadio"},
+	"seikowa_otsuge":  {"seikowaotsuge"},
+	"seikowa_radio":   {"seikowaradio"},
+	"tane":            {"tate"},
+	"fuchigami_mai":   {"fuchigamimai"},
+	"ore-ski":         {"ore.ski"},
+}
+
 func Extract(streamingUrl string, showId string) (*Guess, error) {
-	// re := `\/(\d{4})(\d{2})\/(.+?)(\d{5,6}?)?([^-_]{4}|[^-_]{8})(-|_)(\d+|sp\d*)`
 	reYM := regexp.MustCompile(`\/(\d{4})(\d{2})\/(.+)`)
 
 	matchYM := reYM.FindStringSubmatch(streamingUrl)
@@ -39,16 +49,30 @@ func Extract(streamingUrl string, showId string) (*Guess, error) {
 	}
 
 	rest := matchYM[3]
-	if !strings.HasPrefix(rest, showId) {
-		return nil, errors.Errorf("showId(%s) not found: %s", showId, rest)
-	}
-
 	result := Guess{
 		DateY:   int(year),
 		DateM:   int(month),
 		DateD:   0,
 		EpNum:   0,
 		Special: false,
+	}
+
+	if !strings.HasPrefix(rest, showId) {
+		bypass := false
+		miss, ok := mistakes[showId]
+		if ok {
+			for _, m := range miss {
+				if strings.HasPrefix(rest, m) {
+					rest = strings.TrimPrefix(rest, showId)
+					bypass = true
+					break
+				}
+			}
+		}
+
+		if !bypass {
+			return nil, errors.Errorf("showId(%s) not found: %s", showId, rest)
+		}
 	}
 
 	rest = strings.TrimPrefix(rest, showId)
