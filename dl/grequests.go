@@ -2,6 +2,7 @@ package dl
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/levigross/grequests"
 	"github.com/pgeowng/japoto-dl/types"
@@ -16,12 +17,10 @@ func NewGrequests() *dlGrequests {
 
 // options should me separated from code...
 func (dl *dlGrequests) Text(url string, opts *types.LoaderOpts) (*string, error) {
-	gopts := parseOpts(opts)
-	res, err := grequests.Get(url, gopts)
+	res, err := retryGet(url, opts)
 	if err != nil {
 		return nil, errors.Wrap(err, "get")
 	}
-	fmt.Printf("%s: %v\n", url, res.StatusCode)
 	if !res.Ok {
 		return nil, errors.Errorf("get: bad status code(%d): %s", res.StatusCode, url)
 	}
@@ -30,17 +29,15 @@ func (dl *dlGrequests) Text(url string, opts *types.LoaderOpts) (*string, error)
 }
 
 func (dl *dlGrequests) JSON(url string, dest interface{}, opts *types.LoaderOpts) error {
-	gopts := parseOpts(opts)
-	res, err := grequests.Get(url, gopts)
+	res, err := retryGet(url, opts)
 	if err != nil {
 		return errors.Wrap(err, "get")
 	}
-	fmt.Printf("%s: %v\n", url, res.StatusCode)
+
 	if !res.Ok {
 		return errors.Errorf("get: bad status code(%d): %s", res.StatusCode, url)
 	}
 
-	// mapObj := make([]map[string]interface{}, 0)
 	err = res.JSON(dest)
 	if err != nil {
 		return errors.Wrap(err, "get.json")
@@ -50,12 +47,11 @@ func (dl *dlGrequests) JSON(url string, dest interface{}, opts *types.LoaderOpts
 }
 
 func (dl *dlGrequests) Raw(url string, opts *types.LoaderOpts) ([]byte, error) {
-	gopts := parseOpts(opts)
-	res, err := grequests.Get(url, gopts)
+	res, err := retryGet(url, opts)
 	if err != nil {
 		return nil, errors.Wrap(err, "get")
 	}
-	fmt.Printf("%s: %v\n", url, res.StatusCode)
+
 	if !res.Ok {
 		return nil, errors.Errorf("get: bad status code(%d): %s", res.StatusCode, url)
 	}
@@ -63,10 +59,35 @@ func (dl *dlGrequests) Raw(url string, opts *types.LoaderOpts) ([]byte, error) {
 	return res.Bytes(), nil
 }
 
-func parseOpts(opts *types.LoaderOpts) *grequests.RequestOptions {
-	if opts == nil {
-		return nil
+func retryGet(url string, opts *types.LoaderOpts) (*grequests.Response, error) {
+	gopts := &grequests.RequestOptions{}
+	times := types.LoaderOptsDefault.Timeouts
+
+	if opts != nil {
+		if opts.Headers != nil {
+			gopts.Headers = opts.Headers
+		}
+		if opts.Timeouts != nil {
+			times = opts.Timeouts
+		}
 	}
 
-	return &grequests.RequestOptions{Headers: opts.Headers}
+	var res *grequests.Response
+	var err error
+	for _, t := range times {
+		// fmt.Printf("req %s\n", url)
+		gopts.RequestTimeout = time.Duration(t) * time.Second
+		res, err = grequests.Get(url, gopts)
+		if err == nil {
+			break
+		}
+	}
+
+	if err != nil {
+		return nil, errors.Wrap(err, "retry failed")
+	}
+
+	fmt.Printf("%s: %v\n", url, res.StatusCode)
+
+	return res, nil
 }

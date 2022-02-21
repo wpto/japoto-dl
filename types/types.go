@@ -1,7 +1,13 @@
 package types
 
 type LoaderOpts struct {
-	Headers map[string]string
+	Headers  map[string]string
+	Timeouts []int
+}
+
+var LoaderOptsDefault *LoaderOpts = &LoaderOpts{
+	Headers:  map[string]string{},
+	Timeouts: []int{5, 10, 20},
 }
 
 type Loader interface {
