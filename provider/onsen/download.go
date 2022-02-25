@@ -1,6 +1,8 @@
 package onsen
 
 import (
+	"fmt"
+
 	"github.com/pgeowng/japoto-dl/helpers"
 	"github.com/pgeowng/japoto-dl/model"
 	"github.com/pkg/errors"
@@ -34,6 +36,45 @@ func (ep *FeedRawEp) Download(dl model.Loader, tasks model.Tasks) error {
 	if len(tsaudio) > 1 {
 		return errors.New("onsen.dl: tsaudio size > 1: not implemented")
 	}
+
+	errcImg := make(chan error)
+	go func(errc chan<- error) {
+		if len(ep.PosterImageUrl) == 0 {
+			fmt.Printf("onsen.dl: empty poster image for %s", ep.EpId())
+		}
+
+		if len(ep.showRef.Image.Url) == 0 {
+			fmt.Printf("onsen.dl: empty show image for %s", ep.EpId())
+		}
+
+		url := ep.PosterImageUrl
+
+		if len(url) == 0 {
+			url = ep.showRef.Image.Url
+		}
+
+		if len(url) == 0 {
+			errc <- errors.New("onsen.dl: image not found")
+			return
+		}
+
+		imageBody, err := dl.Raw(url, gopts)
+		if err != nil {
+			errc <- errors.Wrap(err, "onsen.dl.img")
+			return
+		}
+
+		file := model.NewFile("", "")
+		file.SetBody(imageBody)
+
+		err = hls.Image(file)
+		if err != nil {
+			errc <- errors.Wrap(err, "onsen.dl.img")
+			return
+		}
+
+		errc <- nil
+	}(errcImg)
 
 	for _, ts := range tsaudio {
 		tsaudioUrl, err := ts.Url(playlistUrl)
@@ -110,7 +151,11 @@ func (ep *FeedRawEp) Download(dl model.Loader, tasks model.Tasks) error {
 				return err
 			}
 		}
+	}
 
+	errImg := <-errcImg
+	if errImg != nil {
+		return errors.Wrap(errImg, "onsen.dl:")
 	}
 
 	return nil

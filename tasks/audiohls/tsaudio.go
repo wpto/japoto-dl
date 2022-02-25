@@ -5,6 +5,7 @@ import (
 	"regexp"
 
 	"github.com/pgeowng/japoto-dl/model"
+	"github.com/pkg/errors"
 )
 
 func (a *AudioHLSImpl) TSAudio(tsaudio model.File) (keys []model.File, audio []model.File, err error) {
@@ -43,8 +44,10 @@ func (a *AudioHLSImpl) TSAudio(tsaudio model.File) (keys []model.File, audio []m
 		fmt.Println(myTSAudioText)
 	}
 
-	a.workdir.Save(tsaudio.Name(), myTSAudioText)
+	err = a.workdir.Save(tsaudio.Name(), myTSAudioText)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "ahls.tsaudio")
+	}
 
-	err = nil
 	return keys, audio, nil
 }

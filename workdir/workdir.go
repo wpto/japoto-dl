@@ -74,7 +74,7 @@ func (wd *Workdir) WasWritten(name string) bool {
 func (wd *Workdir) Mux() error {
 	imagePath := new(string)
 	if wd.WasWritten("image") {
-		str := wd.ResolveName("image")
+		str := wd.Resolve(wd.ResolveName("image"))
 		imagePath = &str
 	} else {
 		fmt.Println("image wasnot written")
@@ -84,7 +84,7 @@ func (wd *Workdir) Mux() error {
 		return errors.New("wd.mux: playlist was not written")
 	}
 
-	err := wd.muxer.Mux(wd.ResolveName("playlist"), imagePath)
+	err := wd.muxer.Mux(wd.Resolve(wd.ResolveName("playlist")), imagePath)
 	if err != nil {
 		return errors.Wrap(err, "wd.mux")
 	}

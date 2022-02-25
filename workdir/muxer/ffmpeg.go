@@ -31,13 +31,13 @@ func (m *FFMpegHLS) Mux(inputPath string, imagePath *string) error {
 	} else {
 		result = append(result, "-i", *imagePath)
 		result = append(result, "-map", "0", "-map", "1:0")
-		result = append(result, "-vc")
+		result = append(result, "-vcodec", "copy")
 	}
 	result = append(result, "-acodec", "libmp3lame", "-q:a", "2")
 
 	for tag, val := range m.tags {
 		result = append(result, "-metadata")
-		result = append(result, fmt.Sprintf("%s=%s", tag, val))
+		result = append(result, fmt.Sprintf("\"%s=%s\"", tag, val))
 	}
 
 	result = append(result, "-y") // overwrite

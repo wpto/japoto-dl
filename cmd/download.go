@@ -54,6 +54,11 @@ func downloadRun(cmd *cobra.Command, args []string) {
 				return
 			}
 
+			if !date.IsGood() {
+				fmt.Printf("err: bad date %s", date.String())
+				break
+			}
+
 			tags := map[string]string{
 				"title":  strings.Join([]string{date.String(), ep.ShowId(), ep.EpTitle(), ep.ShowTitle()}, " "),
 				"artist": strings.Join(ep.Artists(), " "),
@@ -61,7 +66,9 @@ func downloadRun(cmd *cobra.Command, args []string) {
 				"track":  date.String(),
 			}
 
-			ffm := muxer.NewFFMpegHLS("./output.mp3", tags)
+			destPath := fmt.Sprintf("./%s-%s--onsen.mp3", date.String(), ep.ShowId())
+
+			ffm := muxer.NewFFMpegHLS(destPath, tags)
 			wd1 := wd.NewWd("./.cache", "salt")
 
 			wdHLS := workdir.NewWorkdir(wd1, ffm, map[string]string{
@@ -77,25 +84,13 @@ func downloadRun(cmd *cobra.Command, args []string) {
 				break
 			}
 
-			// err = wdHLS.Mux()
-			// if err != nil {
-			// 	fmt.Println(err)
-			// 	return
-			// }
+			err = wdHLS.Mux()
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
 
 			fmt.Printf("%s ", ep.EpTitle())
 		}
 	}
 }
-
-// func LoadImage(dl model.Loader, wd workdir.Workdir, url string, fileName string) (string, error) {
-// 	body, err := dl.Raw(url, nil)
-// 	if err != nil {
-// 		return "", errors.Wrap(err, "loadimage")
-// 	}
-
-// 	wd.SaveRaw(fileName, body)
-// 	if err != nil {
-// 		return "", errors.Wrap(err, "loadimage")
-// 	}
-// }

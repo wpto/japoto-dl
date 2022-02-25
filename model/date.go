@@ -21,3 +21,7 @@ func intStr(i int) string {
 		return fmt.Sprintf("%02d", i)
 	}
 }
+
+func (d *Date) IsGood() bool {
+	return d.Year > 0 && d.Month > 0 && d.Day > 0
+}

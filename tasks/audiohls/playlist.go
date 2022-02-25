@@ -1,12 +1,12 @@
 package audiohls
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"regexp"
 
 	"github.com/pgeowng/japoto-dl/model"
+	"github.com/pkg/errors"
 )
 
 func (a *AudioHLSImpl) Playlist(playlistText string) (tsaudio []model.File, err error) {
@@ -33,7 +33,7 @@ func (a *AudioHLSImpl) Playlist(playlistText string) (tsaudio []model.File, err 
 
 	err = a.workdir.SaveNamed("playlist", myPlaylistText)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "ahls.playlist")
 	}
 
 	return tsaudio, nil

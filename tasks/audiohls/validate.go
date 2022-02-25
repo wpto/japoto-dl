@@ -19,7 +19,10 @@ func (a *AudioHLSImpl) Validate(file model.File) error {
 		return errors.Errorf("file containing null: %s", file.Name())
 	}
 
-	a.workdir.SaveRaw(file.Name(), file.BodyRaw())
+	err := a.workdir.SaveRaw(file.Name(), file.BodyRaw())
+	if err != nil {
+		return errors.Wrap(err, "ahls.validate")
+	}
 
 	return nil
 }
