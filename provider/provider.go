@@ -6,15 +6,15 @@ import (
 )
 
 type Provider interface {
-	GetFeed() ([]model.Show, error)
+	GetFeed(loader model.Loader) ([]model.Show, error)
 }
 
 type Providers struct {
 	Onsen Provider
 }
 
-func NewProviders(loader model.Loader) *Providers {
+func NewProviders() *Providers {
 	return &Providers{
-		Onsen: onsen.NewOnsen(loader),
+		Onsen: onsen.NewOnsen(),
 	}
 }

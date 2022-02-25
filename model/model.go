@@ -4,7 +4,7 @@ type Episode interface {
 	Artists() []string
 	CanLoad() bool
 	Date() (*Date, error)
-	Download(dl Loader, tasks Tasks) error
+	Download(loader Loader, tasks Tasks) error
 	EpId() string
 	EpTitle() string
 	PlaylistUrl() *string

@@ -8,9 +8,9 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (p *Onsen) GetFeed() ([]model.Show, error) {
+func (p *Onsen) GetFeed(loader model.Loader) ([]model.Show, error) {
 	mapObj := make([]map[string]interface{}, 0)
-	err := p.loader.JSON("https://onsen.ag/web_api/programs/", &mapObj, nil)
+	err := loader.JSON("https://onsen.ag/web_api/programs/", &mapObj, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "onsen.feed.get")
 	}
@@ -31,8 +31,6 @@ func (p *Onsen) GetFeed() ([]model.Show, error) {
 		return nil, errors.Wrap(err, "onsen.feed.map")
 	}
 
-	// fmt.Printf("%#v", resObj)
-
 	for i := range resObj {
 		for j := range resObj[i].Contents {
 			resObj[i].Contents[j].showRef = &resObj[i]
@@ -45,12 +43,6 @@ func (p *Onsen) GetFeed() ([]model.Show, error) {
 		c := v.(model.Show)
 		result = append(result, c)
 	}
-
-	// for _, show := range resObj {
-	// 	for _, ep := range show.Contents {
-	// 		fmt.Println(ep)
-	// 	}
-	// }
 
 	return result, nil
 }

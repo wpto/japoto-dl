@@ -27,9 +27,8 @@ func DownloadCmd() *cobra.Command {
 
 func downloadRun(cmd *cobra.Command, args []string) {
 	d := dl.NewGrequests()
-	prov := provider.NewProviders(d)
-
-	shows, err := prov.Onsen.GetFeed()
+	prov := provider.NewProviders()
+	shows, err := prov.Onsen.GetFeed(d)
 	if err != nil {
 		log.Fatal(err)
 		return
@@ -77,8 +76,8 @@ func downloadRun(cmd *cobra.Command, args []string) {
 			})
 
 			t := tasks.NewTasks(wdHLS)
-
 			err = ep.Download(d, t)
+
 			if err != nil {
 				logger.Printf("skipping... loading error: %v", err)
 				break

@@ -58,15 +58,6 @@ func NewAttrs(dir, load, vid bool) Attrs {
 }
 
 func listRun(cmd *cobra.Command, args []string) {
-	d := dl.NewGrequests()
-	prov := provider.NewProviders(d)
-
-	shows, err := prov.Onsen.GetFeed()
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
-
 	pp := pprint.NewNode(
 		pprint.WithColumns(
 			pprint.NewColumn(),
@@ -75,6 +66,14 @@ func listRun(cmd *cobra.Command, args []string) {
 			pprint.NewColumn(pprint.WithLeftAlignment()),
 		),
 	)
+
+	d := dl.NewGrequests()
+	prov := provider.NewProviders()
+	shows, err := prov.Onsen.GetFeed(d)
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
 
 	for _, show := range shows {
 		if ShowName != "" && show.ShowId() != ShowName {
