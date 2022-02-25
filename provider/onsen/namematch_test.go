@@ -22,7 +22,7 @@ func TestExtract(t *testing.T) {
 		},
 		{"/202201/fujita-pLs1S-04.mp4", "fujita-p",
 			false,
-			2022, 1, 0,
+			2022, 1, -1,
 			"04",
 		},
 		{"/202111/gurepap21114av8u-55.mp4", "gurepap",

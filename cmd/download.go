@@ -1,4 +1,4 @@
-package main
+package cmd
 
 import (
 	"fmt"
@@ -11,19 +11,31 @@ import (
 	"github.com/pgeowng/japoto-dl/workdir"
 	"github.com/pgeowng/japoto-dl/workdir/muxer"
 	"github.com/pgeowng/japoto-dl/workdir/wd"
+	"github.com/spf13/cobra"
 )
 
-func main() {
-	logger := log.Default()
+func DownloadCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "download",
+		Short: "Download eps",
+		Long:  "Downloads available episodes",
+		Run:   downloadRun,
+	}
 
-	ddl := dl.NewGrequests()
-	providersInfo := provider.NewProviders(ddl)
+	return cmd
+}
 
-	shows, err := providersInfo.Onsen.GetFeed()
+func downloadRun(cmd *cobra.Command, args []string) {
+	d := dl.NewGrequests()
+	prov := provider.NewProviders(d)
+
+	shows, err := prov.Onsen.GetFeed()
 	if err != nil {
 		log.Fatal(err)
 		return
 	}
+
+	logger := log.Default()
 
 	for _, show := range shows {
 		eps := show.GetEpisodes()
@@ -59,7 +71,7 @@ func main() {
 
 			t := tasks.NewTasks(wdHLS)
 
-			err = ep.Download(ddl, t)
+			err = ep.Download(d, t)
 			if err != nil {
 				logger.Printf("skipping... loading error: %v", err)
 				break
@@ -74,7 +86,6 @@ func main() {
 			fmt.Printf("%s ", ep.EpTitle())
 		}
 	}
-
 }
 
 // func LoadImage(dl model.Loader, wd workdir.Workdir, url string, fileName string) (string, error) {

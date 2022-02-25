@@ -51,7 +51,7 @@ func Extract(streamingUrl string, showId string) (*Guess, error) {
 	result := Guess{
 		DateY: int(year),
 		DateM: int(month),
-		DateD: 0,
+		DateD: -1,
 		Num:   "",
 	}
 

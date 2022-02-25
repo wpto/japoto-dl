@@ -140,59 +140,77 @@ func (ep *FeedRawEp) CanLoad() bool {
 }
 
 func (ep *FeedRawEp) Date() (*model.Date, error) {
-	if ep.StreamingUrl == nil {
-		return nil, errors.New("you can't call ep.Date() on episode that is can't be loaded. onsen specific limitation")
+	result := &model.Date{Year: -1, Month: -1, Day: -1}
+
+	if ep.StreamingUrl != nil {
+		other, err := parseStreamingUrlDate(*ep.StreamingUrl, ep.ShowId())
+		if err != nil {
+			return nil, err
+		}
+
+		if result.Year == -1 {
+			result.Year = other.Year
+		}
+		if result.Month == -1 {
+			result.Month = other.Month
+		}
+		if result.Day == -1 {
+			result.Day = other.Day
+		}
 	}
 
-	result, err := Extract(*ep.StreamingUrl, ep.ShowId())
+	if ep.DeliveryDate != nil {
+		other, err := parseDeliveryDate(*ep.DeliveryDate)
+		if err != nil {
+			return nil, err
+		}
 
-	if err != nil {
-		return nil, errors.Wrap(err, fmt.Sprintf("onsen.date: bad format for (%s, %s)", *ep.StreamingUrl, ep.ShowId()))
+		if result.Year == -1 {
+			result.Year = other.Year
+		}
+		if result.Month == -1 {
+			result.Month = other.Month
+		}
+		if result.Day == -1 {
+			result.Day = other.Day
+		}
 	}
 
-	if result.DateD != 0 && result.DateM != 0 && result.DateY != 0 {
-		return &model.Date{
-			Year:  result.DateY,
-			Month: result.DateM,
-			Day:   result.DateD,
-		}, nil
-	}
+	return result, nil
+}
 
-	if result.DateY == 0 {
-		return nil, errors.New("onsen.date: cant resolve without year")
-	}
+func parseDeliveryDate(date string) (*model.Date, error) {
+	re := regexp.MustCompile(`(\d+)/(\d+)`)
 
-	if ep.DeliveryDate == nil {
-		return nil, errors.New("onsen.date: undefined")
-	}
-
-	reText := `(\d+)/(\d+)`
-	reDate := regexp.MustCompile(reText)
-
-	match := reDate.FindStringSubmatch(*ep.DeliveryDate)
+	match := re.FindStringSubmatch(date)
 	if match == nil {
-		return nil, errors.Errorf("onsen.date: bad delivery_date format: %s", *ep.DeliveryDate)
+		return nil, errors.Errorf("dont match pattern m/d: %s", date)
 	}
 
-	mm, err := strconv.ParseInt(match[1], 10, 0)
+	mm, _ := strconv.ParseInt(match[1], 10, 0)
+	dd, _ := strconv.ParseInt(match[2], 10, 0)
+
+	return &model.Date{
+		Year:  -1,
+		Month: int(mm),
+		Day:   int(dd),
+	}, nil
+}
+
+func parseStreamingUrlDate(url string, showId string) (*model.Date, error) {
+	result, err := Extract(url, showId)
 	if err != nil {
-		return nil, errors.Wrap(err, "onsen.date.delivery_month")
+		return nil, err
 	}
-
-	if int(mm) != result.DateM {
-		return nil, errors.Errorf("onsen.date: month mismatch %s and %s", *ep.DeliveryDate, *ep.StreamingUrl)
-	}
-
-	dd, err := strconv.ParseInt(match[2], 10, 0)
-	if err != nil {
-		return nil, errors.Wrap(err, "onsen.date.delivery_month")
-	}
-
 	return &model.Date{
 		Year:  result.DateY,
 		Month: result.DateM,
-		Day:   int(dd),
+		Day:   result.DateD,
 	}, nil
+}
+
+func (ep *FeedRawEp) EpId() string {
+	return fmt.Sprintf("%s/%d", ep.ShowId(), ep.Id)
 }
 
 func (ep *FeedRawEp) EpTitle() string {
