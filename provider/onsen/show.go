@@ -129,3 +129,6 @@ func (show *OnsenShow) PPrint() model.PPrintRow {
 		Cast:    show.Artists(),
 	}
 }
+func (show *OnsenShow) Provider() string {
+	return "onsen"
+}

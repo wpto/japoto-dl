@@ -36,6 +36,20 @@ func (d *Date) String() string {
 	return strings.Join(result, " ")
 }
 
+func (d *Date) Filename() string {
+	result := []string{"00", "00", "00"}
+	if d.Year > 0 {
+		result[0] = fmt.Sprintf("%02d", d.Year%100)
+	}
+	if d.Month > 0 {
+		result[0] = fmt.Sprintf("%02d", d.Month)
+	}
+	if d.Day > 0 {
+		result[0] = fmt.Sprintf("%02d", d.Day)
+	}
+	return strings.Join(result, "")
+}
+
 func intStr(i int) string {
 	if i < 1 {
 		return "--"

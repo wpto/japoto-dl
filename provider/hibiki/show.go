@@ -13,7 +13,8 @@ type HibikiShow struct {
 		Name     string  `json:"name"`
 		RollName *string `json:"roll_name"`
 	} `json:"casts"`
-	Episode HibikiEpisode `json:"episode"`
+	PcImageUrl string        `json:"pc_image_url"`
+	Episode    HibikiEpisode `json:"episode"`
 }
 
 func (show *HibikiShow) ShowId() string {
@@ -70,4 +71,8 @@ func (show *HibikiShow) PPrint() model.PPrintRow {
 		Note:    show.ShowTitle(),
 		Cast:    show.Artists(),
 	}
+}
+
+func (show *HibikiShow) Provider() string {
+	return "hibiki"
 }

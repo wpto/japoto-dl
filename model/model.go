@@ -26,6 +26,7 @@ type Show interface {
 	ShowTitle() string
 
 	PPrint() PPrintRow
+	Provider() string
 }
 
 type ShowAccess interface {

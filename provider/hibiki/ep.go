@@ -85,8 +85,3 @@ func (m *HibikiEpisodeMedia) PPrint() model.PPrintRow {
 		Cast:    []string{},
 	}
 }
-
-func (m *HibikiEpisodeMedia) Download(loader model.Loader, tasks model.Tasks) error {
-
-	return nil
-}

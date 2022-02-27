@@ -1,6 +1,16 @@
 package cmd
 
 import (
+	"fmt"
+	"log"
+	"strings"
+
+	"github.com/pgeowng/japoto-dl/dl"
+	"github.com/pgeowng/japoto-dl/provider"
+	"github.com/pgeowng/japoto-dl/tasks"
+	"github.com/pgeowng/japoto-dl/workdir"
+	"github.com/pgeowng/japoto-dl/workdir/muxer"
+	"github.com/pgeowng/japoto-dl/workdir/wd"
 	"github.com/spf13/cobra"
 )
 
@@ -16,71 +26,75 @@ func DownloadCmd() *cobra.Command {
 }
 
 func downloadRun(cmd *cobra.Command, args []string) {
-	// d := dl.NewGrequests()
-	// prov := provider.NewProviders()
-	// shows, err := prov.Hibiki.GetFeed(d)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// 	return
-	// }
 
-	// logger := log.Default()
+	d := dl.NewGrequests()
+	prov := provider.NewProviders()
+	shows, err := prov.Hibiki.GetFeed(d)
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
 
-	// for _, show := range shows {
+	logger := log.Default()
 
-	// 	eps := show.GetEpisodes()
-	// 	for _, ep := range eps {
-	// 		canLoad := ep.CanLoad()
+	for _, showAccess := range shows {
+		show, err := showAccess.GetShow(d)
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+		eps := show.GetEpisodes()
+		for _, ep := range eps {
+			canLoad := ep.CanDownload()
 
-	// 		if !canLoad {
-	// 			logger.Printf("%s - cant load - skipping...", ep.ShowId())
-	// 			break
-	// 		}
+			if !canLoad {
+				logger.Printf("%s - cant load - skipping...", ep.EpId())
+				break
+			}
 
-	// 		date, err := ep.Date()
-	// 		if err != nil {
-	// 			fmt.Println(err)
-	// 			fmt.Printf("%#v\n", ep)
-	// 			return
-	// 		}
+			date := ep.Date()
 
-	// 		if !date.IsGood() {
-	// 			fmt.Printf("err: bad date %s", date.String())
-	// 			break
-	// 		}
+			if !date.IsGood() {
+				fmt.Printf("err: bad date %s", date.String())
+				break
+			}
 
-	// 		tags := map[string]string{
-	// 			"title":  strings.Join([]string{date.String(), ep.ShowId(), ep.EpTitle(), ep.ShowTitle()}, " "),
-	// 			"artist": strings.Join(ep.Artists(), " "),
-	// 			"album":  ep.ShowTitle(),
-	// 			"track":  date.String(),
-	// 		}
+			artists := []string{}
 
-	// 		destPath := fmt.Sprintf("./%s-%s--onsen.mp3", date.String(), ep.ShowId())
+			artists = append(artists, ep.Show().Artists()...)
+			artists = append(artists, ep.Artists()...)
 
-	// 		ffm := muxer.NewFFMpegHLS(destPath, tags)
-	// 		wd1 := wd.NewWd("./.cache", "salt")
+			tags := map[string]string{
+				"title":  strings.Join([]string{date.String(), ep.Show().ShowId(), ep.EpTitle(), ep.Show().ShowTitle()}, " "),
+				"artist": strings.Join(ep.Artists(), " "),
+				"album":  ep.Show().ShowTitle(),
+				"track":  date.Filename(),
+			}
 
-	// 		wdHLS := workdir.NewWorkdir(wd1, ffm, map[string]string{
-	// 			"playlist": "playlist.m3u8",
-	// 			"image":    "image",
-	// 		})
+			destPath := fmt.Sprintf("./%s-%s--%s.mp3", date.Filename(), ep.Show().ShowId(), ep.Show().Provider())
 
-	// 		t := tasks.NewTasks(wdHLS)
-	// 		err = ep.Download(d, t)
+			ffm := muxer.NewFFMpegHLS(destPath, tags)
+			wd1 := wd.NewWd("./.cache", "salt1")
 
-	// 		if err != nil {
-	// 			logger.Printf("skipping... loading error: %v", err)
-	// 			break
-	// 		}
+			wdHLS := workdir.NewWorkdir(wd1, ffm, map[string]string{
+				"playlist": "playlist.m3u8",
+				"image":    "image",
+			})
 
-	// 		err = wdHLS.Mux()
-	// 		if err != nil {
-	// 			fmt.Println(err)
-	// 			return
-	// 		}
+			t := tasks.NewTasks(wdHLS)
+			err = ep.Download(d, t)
+			if err != nil {
+				logger.Printf("skipping... loading error: %v", err)
+				break
+			}
 
-	// 		fmt.Printf("%s ", ep.EpTitle())
-	// 	}
-	// }
+			// err = wdHLS.Mux()
+			// if err != nil {
+			// 	fmt.Println(err)
+			// 	return
+			// }
+
+			fmt.Printf("%s ", ep.EpTitle())
+		}
+	}
 }
