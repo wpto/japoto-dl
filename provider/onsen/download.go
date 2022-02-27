@@ -3,7 +3,6 @@ package onsen
 import (
 	"fmt"
 
-	"github.com/pgeowng/japoto-dl/helpers"
 	"github.com/pgeowng/japoto-dl/model"
 	"github.com/pkg/errors"
 )
@@ -93,70 +92,81 @@ func (ep *OnsenEpisode) Download(loader model.Loader, tasks model.Tasks) error {
 			return errors.Wrap(err, "onsen.dl.tsparse")
 		}
 
-		total := len(keys) + len(audio)
+		// total := len(keys) + len(audio)
 
-		files := make(chan model.File, total)
-		loaders := make(chan func() error)
-		loaded := make(chan error)
-		go helpers.EachLimit(loaders, loaded, 10)
+		done := make(chan struct{})
+
+		loadChan := make(chan *model.File, 10)
+		loadError := make(chan error)
+
+		validateChan := make(chan *model.File, 20)
+		validateError := make(chan error)
+
 		go func() {
-			defer close(loaders)
-
-			links := []model.File{}
-			links = append(links, keys...)
-			links = append(links, audio...)
-
-			for _, l := range links {
-				loaders <- func(f model.File) func() error {
-					return func() error {
-						err := fetch(loader, tsaudioUrl, &f)
-						if err == nil {
-							files <- f
-						}
-						return err
+			defer close(validateChan)
+			for file := range loadChan {
+				select {
+				case <-done:
+					return
+				default:
+					url, err := file.Url(tsaudioUrl)
+					if err != nil {
+						loadError <- errors.Wrap(err, "onsen.dl.file")
+						return
 					}
-				}(l)
-			}
-		}()
 
-		savers := make(chan func() error)
-		saved := make(chan error)
-		go helpers.EachLimit(savers, saved, 100)
-		go func() {
-			defer close(savers)
-			for file := range files {
-				savers <- func(f model.File) func() error {
-					return func() error {
-						return save(tasks, &f)
+					body, err := loader.Raw(url, gopts)
+					if err != nil {
+						loadError <- errors.Wrap(err, "onsen.dl.file")
+						return
 					}
-				}(file)
-			}
-		}()
 
-		errc := make(chan error)
-		go func() {
-			err = <-loaded
-			close(loaded)
-			close(files)
-			if err != nil {
-				err = errors.Wrap(err, "onsen.dl.files_load")
+					file.SetBody(body)
+					validateChan <- file
+				}
 			}
-			errc <- err
 		}()
 
 		go func() {
-			err = <-saved
-			close(saved)
-			if err != nil {
-				err = errors.Wrap(err, "onsen.dl.files_save")
+			defer close(validateError)
+			for file := range validateChan {
+				select {
+				case <-done:
+					return
+				default:
+					err = tasks.AudioHLS().Validate(*file)
+					if err != nil {
+						validateError <- errors.Wrap(err, "onsen.dl.validate")
+					}
+				}
 			}
-			errc <- err
 		}()
 
-		for i := 0; i < 2; i++ {
-			err = <-errc
+		links := []model.File{}
+		links = append(links, keys...)
+		links = append(links, audio...)
+
+		for idx := range links {
+			select {
+			case loadChan <- &links[idx]:
+			case err := <-loadError:
+				close(done)
+				return errors.Wrap(err, "onsen.dl")
+			case err := <-validateError:
+				close(done)
+				return errors.Wrap(err, "onsen.dl")
+			}
+		}
+		close(loadChan)
+
+		select {
+		case err := <-loadError:
+			close(done)
+			return errors.Wrap(err, "onsen.dl")
+		case err := <-validateError:
 			if err != nil {
-				return err
+				close(done)
+				return errors.Wrap(err, "onsen.validate")
 			}
 		}
 	}
@@ -166,27 +176,5 @@ func (ep *OnsenEpisode) Download(loader model.Loader, tasks model.Tasks) error {
 		return errors.Wrap(errImg, "onsen.dl:")
 	}
 
-	return nil
-}
-
-func fetch(loader model.Loader, prefix string, file *model.File) error {
-	url, err := file.Url(prefix)
-	if err != nil {
-		return errors.Wrap(err, "fetch.url")
-	}
-
-	body, err := loader.Raw(url, gopts)
-	if err != nil {
-		return errors.Wrap(err, "fetch.raw")
-	}
-
-	file.SetBody(body)
-	return nil
-}
-func save(tasks model.Tasks, file *model.File) error {
-	err := tasks.AudioHLS().Validate(*file)
-	if err != nil {
-		return errors.Wrap(err, "save.validate")
-	}
 	return nil
 }
