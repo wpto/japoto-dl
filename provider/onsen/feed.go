@@ -3,44 +3,46 @@ package onsen
 import (
 	"reflect"
 
-	"github.com/mitchellh/mapstructure"
 	"github.com/pgeowng/japoto-dl/model"
 	"github.com/pkg/errors"
 )
 
-func (p *Onsen) GetFeed(loader model.Loader) ([]model.Show, error) {
-	mapObj := make([]map[string]interface{}, 0)
-	err := loader.JSON("https://onsen.ag/web_api/programs/", &mapObj, nil)
+type OnsenShowAccess struct {
+	DirectoryName string `json:"directory_name"`
+}
+
+func (sa *OnsenShowAccess) GetShow(loader model.Loader) (model.Show, error) {
+	resObj := OnsenShow{}
+	err := loader.JSON("https://onsen.ag/web_api/programs/"+sa.DirectoryName, &resObj, nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "onsen.show")
+	}
+
+	for idx := range resObj.Contents {
+		resObj.Contents[idx].showRef = &resObj
+	}
+
+	v := reflect.ValueOf(&resObj).Interface()
+	c := v.(model.Show)
+
+	return c, nil
+}
+
+func (sa *OnsenShowAccess) ShowId() string {
+	return sa.DirectoryName
+}
+
+func (p *Onsen) GetFeed(loader model.Loader) ([]model.ShowAccess, error) {
+	resObj := []OnsenShowAccess{}
+	err := loader.JSON("https://onsen.ag/web_api/programs/", &resObj, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "onsen.feed.get")
 	}
 
-	resObj := []FeedRawShow{}
-	conf := &mapstructure.DecoderConfig{
-		ErrorUnused: true,
-		Result:      &resObj,
-	}
-
-	mapstr, err := mapstructure.NewDecoder(conf)
-	if err != nil {
-		return nil, errors.Wrap(err, "onsen.feed.mapstr")
-	}
-
-	err = mapstr.Decode(mapObj)
-	if err != nil {
-		return nil, errors.Wrap(err, "onsen.feed.map")
-	}
-
-	for i := range resObj {
-		for j := range resObj[i].Contents {
-			resObj[i].Contents[j].showRef = &resObj[i]
-		}
-	}
-
-	result := make([]model.Show, 0)
+	result := make([]model.ShowAccess, 0)
 	for i := range resObj {
 		v := reflect.ValueOf(&resObj[i]).Interface()
-		c := v.(model.Show)
+		c := v.(model.ShowAccess)
 		result = append(result, c)
 	}
 

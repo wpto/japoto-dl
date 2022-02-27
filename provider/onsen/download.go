@@ -14,7 +14,7 @@ var gopts *model.LoaderOpts = &model.LoaderOpts{
 	},
 }
 
-func (ep *FeedRawEp) Download(loader model.Loader, tasks model.Tasks) error {
+func (ep *OnsenEpisode) Download(loader model.Loader, tasks model.Tasks) error {
 	hls := tasks.AudioHLS()
 
 	if ep.StreamingUrl == nil {

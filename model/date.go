@@ -2,6 +2,9 @@ package model
 
 import (
 	"fmt"
+	"strings"
+
+	"github.com/pkg/errors"
 )
 
 type Date struct {
@@ -10,8 +13,27 @@ type Date struct {
 	Day   int
 }
 
+var monthMap []string = []string{"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"}
+
 func (d *Date) String() string {
-	return fmt.Sprintf("%s%s%s", intStr(d.Year%100), intStr(d.Month), intStr(d.Day))
+	result := []string{"----", "---", "--"}
+
+	if d.Year > 0 {
+		result[0] = fmt.Sprintf("%4d", d.Year)
+	}
+
+	if d.Month > 0 {
+		if d.Month > 12 {
+			panic(errors.New("bad month"))
+		}
+		result[1] = monthMap[d.Month-1]
+	}
+
+	if d.Day > 0 {
+		result[2] = fmt.Sprintf("%2d", d.Day)
+	}
+
+	return strings.Join(result, " ")
 }
 
 func intStr(i int) string {
