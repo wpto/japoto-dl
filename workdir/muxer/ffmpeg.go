@@ -30,7 +30,7 @@ func (m *FFMpegHLS) Mux(inputPath string, imagePath *string) error {
 		result = append(result, "-vn")
 	} else {
 		result = append(result, "-i", *imagePath)
-		result = append(result, "-map", "0", "-map", "1:0")
+		result = append(result, "-map", "0:a", "-map", "1:0")
 		result = append(result, "-vcodec", "copy")
 	}
 	result = append(result, "-acodec", "libmp3lame", "-q:a", "2")
@@ -57,9 +57,9 @@ func FFMpeg(args []string) error {
 
 	err := c.Run()
 	if err != nil {
-		fmt.Printf("ffmpeg args:\n  %v\n", args)
 		fmt.Printf("ffmpeg stdout:\n  %s\n", stdout)
 		fmt.Printf("ffmpeg stderr:\n  %s\n", stderr)
+		fmt.Printf("ffmpeg args:\n  %v\n", args)
 		return errors.Wrap(err, "ffmpeg")
 	}
 

@@ -24,6 +24,7 @@ type WorkdirHLS interface {
 type WorkdirHLSMuxer interface {
 	WorkdirFile
 	Mux() error
+	ForceMux() error
 }
 
 type Workdir struct {
@@ -71,20 +72,40 @@ func (wd *Workdir) WasWritten(name string) bool {
 	return ok
 }
 
-func (wd *Workdir) Mux() error {
-	imagePath := new(string)
+func (wd *Workdir) checkMuxFiles() (playlistPath string, imagePath *string, err error) {
 	if wd.WasWritten("image") {
 		str := wd.Resolve(wd.ResolveName("image"))
 		imagePath = &str
 	} else {
-		fmt.Println("image wasnot written")
+		fmt.Println("image wasn't written")
 	}
 
+	playlistPath = wd.Resolve(wd.ResolveName("playlist"))
 	if !wd.WasWritten("playlist") {
-		return errors.New("wd.mux: playlist was not written")
+		err = errors.New("wd.mux: playlist was not written")
+		str := wd.Resolve(wd.ResolveName("image"))
+		imagePath = &str
 	}
 
-	err := wd.muxer.Mux(wd.Resolve(wd.ResolveName("playlist")), imagePath)
+	return
+}
+
+func (wd *Workdir) Mux() error {
+	playlistPath, imagePath, err := wd.checkMuxFiles()
+	if err != nil {
+		return err
+	}
+
+	err = wd.muxer.Mux(playlistPath, imagePath)
+	if err != nil {
+		return errors.Wrap(err, "wd.mux")
+	}
+	return nil
+}
+
+func (wd *Workdir) ForceMux() error {
+	playlistPath, imagePath, _ := wd.checkMuxFiles()
+	err := wd.muxer.Mux(playlistPath, imagePath)
 	if err != nil {
 		return errors.Wrap(err, "wd.mux")
 	}

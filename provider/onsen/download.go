@@ -39,11 +39,11 @@ func (ep *OnsenEpisode) Download(loader model.Loader, tasks model.Tasks) error {
 	errcImg := make(chan error)
 	go func(errc chan<- error) {
 		if len(ep.PosterImageUrl) == 0 {
-			fmt.Printf("onsen.dl: empty poster image for %s", ep.EpId())
+			fmt.Printf("onsen.dl: note empty poster image for %s\n", ep.EpId())
 		}
 
 		if len(ep.showRef.Image.Url) == 0 {
-			fmt.Printf("onsen.dl: empty show image for %s", ep.EpId())
+			fmt.Printf("onsen.dl: note empty show image for %s\n", ep.EpId())
 		}
 
 		url := ep.PosterImageUrl
@@ -121,6 +121,7 @@ func (ep *OnsenEpisode) Download(loader model.Loader, tasks model.Tasks) error {
 						return
 					}
 
+					fmt.Print(".")
 					file.SetBody(body)
 					validateChan <- file
 				}
@@ -141,6 +142,8 @@ func (ep *OnsenEpisode) Download(loader model.Loader, tasks model.Tasks) error {
 				}
 			}
 		}()
+
+		defer fmt.Printf("\n")
 
 		links := []model.File{}
 		links = append(links, keys...)

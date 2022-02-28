@@ -1,7 +1,6 @@
 package dl
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/levigross/grequests"
@@ -78,7 +77,6 @@ func (dl *dlGrequests) retryGet(url string, opts *model.LoaderOpts) (*grequests.
 	var res *grequests.Response
 	var err error
 	for _, t := range times {
-		// fmt.Printf("req %s\n", url)
 		gopts.RequestTimeout = time.Duration(t) * time.Second
 		res, err = dl.session.Get(url, gopts)
 		if err == nil {
@@ -90,7 +88,7 @@ func (dl *dlGrequests) retryGet(url string, opts *model.LoaderOpts) (*grequests.
 		return nil, errors.Wrap(err, "retry failed")
 	}
 
-	fmt.Printf("%s: %v\n", url, res.StatusCode)
+	// fmt.Printf("%s: %v\n", url, res.StatusCode)
 
 	return res, nil
 }

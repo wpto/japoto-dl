@@ -8,6 +8,7 @@ import (
 
 type Provider interface {
 	GetFeed(loader model.Loader) ([]model.ShowAccess, error)
+	Label() string
 }
 
 type Providers struct {
@@ -20,4 +21,8 @@ func NewProviders() *Providers {
 		Onsen:  onsen.NewOnsen(),
 		Hibiki: hibiki.NewHibiki(),
 	}
+}
+
+func NewProvidersList() []Provider {
+	return []Provider{onsen.NewOnsen(), hibiki.NewHibiki()}
 }

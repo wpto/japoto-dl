@@ -85,3 +85,7 @@ func (m *HibikiEpisodeMedia) PPrint() model.PPrintRow {
 		Cast:    []string{},
 	}
 }
+
+func (m *HibikiEpisodeMedia) EpIdx() int {
+	return m.Id
+}

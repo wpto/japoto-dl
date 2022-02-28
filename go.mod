@@ -3,16 +3,15 @@ module github.com/pgeowng/japoto-dl
 go 1.17
 
 require (
+	github.com/adios/pprint v0.1.0
 	github.com/levigross/grequests v0.0.0-20190908174114-253788527a1a
-	github.com/mitchellh/mapstructure v1.4.3
 	github.com/pkg/errors v0.9.1
+	github.com/spf13/cobra v1.3.0
 )
 
 require (
-	github.com/adios/pprint v0.1.0 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
-	github.com/spf13/cobra v1.3.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd // indirect
 )

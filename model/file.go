@@ -1,7 +1,6 @@
 package model
 
 import (
-	"fmt"
 	"net/url"
 
 	"github.com/pkg/errors"
@@ -37,7 +36,6 @@ func (f *File) Name() string {
 }
 
 func (f *File) SetBody(data []byte) {
-	fmt.Printf("%s: setraw\n", f.name)
 	if len(f.body) != 0 {
 		panic(errors.New("body was already set"))
 	}
@@ -45,7 +43,6 @@ func (f *File) SetBody(data []byte) {
 }
 
 func (f *File) BodyRaw() []byte {
-	fmt.Printf("%s: getraw\n", f.name)
 	if len(f.body) == 0 {
 		panic(errors.Errorf("%s: body was not set", f.name))
 	}
@@ -53,7 +50,6 @@ func (f *File) BodyRaw() []byte {
 }
 
 func (f *File) SetBodyString(data *string) {
-	fmt.Printf("%s: setstr\n", f.name)
 	if len(f.body) != 0 {
 		panic(errors.New("body was already set"))
 	}
@@ -62,7 +58,6 @@ func (f *File) SetBodyString(data *string) {
 }
 
 func (f *File) BodyString() string {
-	fmt.Printf("%s: getstr\n", f.name)
 	if len(f.body) == 0 {
 		panic(errors.Errorf("%s: body was not set", f.name))
 	}

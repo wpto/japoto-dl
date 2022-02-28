@@ -13,3 +13,7 @@ var gopts *model.LoaderOpts = &model.LoaderOpts{
 func NewHibiki() *Hibiki {
 	return &Hibiki{}
 }
+
+func (h *Hibiki) Label() string {
+	return "hibiki"
+}

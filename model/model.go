@@ -8,6 +8,7 @@ type Episode interface {
 	Date() Date
 	Download(loader Loader, tasks Tasks) error
 	EpId() string
+	EpIdx() int
 	EpTitle() string
 	// PlaylistUrl() *string
 	// ShowId() string

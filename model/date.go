@@ -42,10 +42,10 @@ func (d *Date) Filename() string {
 		result[0] = fmt.Sprintf("%02d", d.Year%100)
 	}
 	if d.Month > 0 {
-		result[0] = fmt.Sprintf("%02d", d.Month)
+		result[1] = fmt.Sprintf("%02d", d.Month)
 	}
 	if d.Day > 0 {
-		result[0] = fmt.Sprintf("%02d", d.Day)
+		result[2] = fmt.Sprintf("%02d", d.Day)
 	}
 	return strings.Join(result, "")
 }

@@ -164,3 +164,7 @@ func (ep *OnsenEpisode) Show() model.Show {
 	c := v.(model.Show)
 	return c
 }
+
+func (ep *OnsenEpisode) EpIdx() int {
+	return ep.Id
+}

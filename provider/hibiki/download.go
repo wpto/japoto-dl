@@ -75,41 +75,91 @@ func (ep *HibikiEpisodeMedia) Download(loader model.Loader, tasks model.Tasks) e
 			return errors.Wrap(err, "hibiki.dl.ts")
 		}
 
-		for _, k := range keys {
-			url, err := k.Url(tsaudioUrl)
-			if err != nil {
-				return errors.Wrap(err, "hibiki.dl.key")
+		// total := len(keys) + len(audio)
+
+		done := make(chan struct{})
+
+		loadChan := make(chan *model.File, 10)
+		loadError := make(chan error)
+
+		validateChan := make(chan *model.File, 20)
+		validateError := make(chan error)
+
+		go func() {
+			defer close(validateChan)
+			for file := range loadChan {
+				select {
+				case <-done:
+					return
+				default:
+					url, err := file.Url(tsaudioUrl)
+					if err != nil {
+						loadError <- errors.Wrap(err, "hibiki.dl.file")
+						return
+					}
+
+					body, err := loader.Raw(url, gopts)
+					if err != nil {
+						loadError <- errors.Wrap(err, "hibiki.dl.file")
+						return
+					}
+
+					fmt.Print(".")
+					file.SetBody(body)
+					validateChan <- file
+				}
 			}
+		}()
 
-			body, err := loader.Raw(url, gopts)
-			if err != nil {
-				return errors.Wrap(err, "hibiki.dl.key")
+		go func() {
+			defer close(validateError)
+			for file := range validateChan {
+				select {
+				case <-done:
+					return
+				default:
+					err = tasks.AudioHLS().Validate(*file)
+					if err != nil {
+						validateError <- errors.Wrap(err, "hibiki.dl.validate")
+					}
+				}
 			}
+		}()
 
-			k.SetBody(body)
+		defer fmt.Printf("\n")
 
-			err = hls.Validate(k)
-			if err != nil {
-				return errors.Wrap(err, "hibiki.dl.key")
+		links := []model.File{}
+		links = append(links, keys...)
+		links = append(links, audio...)
+
+		for idx := range links {
+			select {
+			case loadChan <- &links[idx]:
+			case err := <-loadError:
+				close(done)
+				return errors.Wrap(err, "hibiki.dl")
+			case err := <-validateError:
+				close(done)
+				return errors.Wrap(err, "hibiki.dl")
 			}
 		}
+		close(loadChan)
 
-		for _, k := range audio {
-			url, err := k.Url(tsaudioUrl)
+		select {
+		case err := <-loadError:
+			close(done)
+			return errors.Wrap(err, "hibiki.dl")
+		case err := <-validateError:
 			if err != nil {
-				return errors.Wrap(err, "hibiki.dl.audio")
-			}
-			body, err := loader.Raw(url, gopts)
-			if err != nil {
-				return errors.Wrap(err, "hibiki.dl.audio")
-			}
-			k.SetBody(body)
-
-			err = hls.Validate(k)
-			if err != nil {
-				return errors.Wrap(err, "hibiki.dl.audio")
+				close(done)
+				return errors.Wrap(err, "hibiki.validate")
 			}
 		}
+	}
+
+	errImg := <-errcImg
+	if errImg != nil {
+		return errors.Wrap(errImg, "hibiki.dl:")
 	}
 
 	return nil

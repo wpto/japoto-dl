@@ -33,7 +33,7 @@ func (a *AudioHLSImpl) TSAudio(tsaudio model.File) (keys []model.File, audio []m
 	idx = 0
 
 	myTSAudioText = audioRE.ReplaceAllStringFunc(myTSAudioText, func(link string) string {
-		name := fmt.Sprintf("audio_%d.ts", idx)
+		name := fmt.Sprintf("audio_%d", idx)
 		idx += 1
 		audio = append(audio, model.NewFile(link, name))
 		return name

@@ -40,7 +40,6 @@ func (wd *Wd) Save(fileName, fileBody string) error {
 }
 
 func (wd *Wd) SaveRaw(fileName string, fileBody []byte) error {
-  fmt.Printf("writing %s\n", fileName)
   wd.Ensure()
   filePath := filepath.Join(wd.dir, fileName)
   err := ioutil.WriteFile(filePath, fileBody, 0644)
@@ -49,4 +48,10 @@ func (wd *Wd) SaveRaw(fileName string, fileBody []byte) error {
   }
 
   return nil
+}
+
+func (wd *Wd) Clean() {
+  if err := os.RemoveAll(wd.dir); err != nil {
+    fmt.Printf("wd(%s): clean error - %v\n", wd.dir, err)
+  }
 }
