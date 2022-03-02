@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 
@@ -122,7 +123,10 @@ func loadEpisodes(d model.Loader, show model.Show) error {
 		artists := []string{}
 
 		artists = append(artists, ep.Show().Artists()...)
-		artists = append(artists, ep.Artists()...)
+		sort.Strings(artists)
+		guests := ep.Artists()
+		sort.Strings(guests)
+		artists = append(artists, guests...)
 
 		tags := map[string]string{
 			"title":  strings.Join([]string{date.Filename(), ep.Show().ShowId(), ep.EpTitle(), ep.Show().ShowTitle()}, " "),
