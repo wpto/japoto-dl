@@ -37,7 +37,7 @@ func (m *FFMpegHLS) Mux(inputPath string, imagePath *string) error {
 
 	for tag, val := range m.tags {
 		result = append(result, "-metadata")
-		result = append(result, fmt.Sprintf("\"%s=%s\"", tag, val))
+		result = append(result, fmt.Sprintf("%s=%s", tag, val))
 	}
 
 	result = append(result, "-y") // overwrite

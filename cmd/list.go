@@ -29,7 +29,7 @@ func listRun(cmd *cobra.Command, args []string) {
 
 	d := dl.NewGrequests()
 	prov := provider.NewProviders()
-	shows, err := prov.Onsen.GetFeed(d)
+	shows, err := prov.Hibiki.GetFeed(d)
 	if err != nil {
 		log.Fatal(err)
 		return

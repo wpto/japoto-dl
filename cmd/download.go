@@ -125,8 +125,8 @@ func loadEpisodes(d model.Loader, show model.Show) error {
 		artists = append(artists, ep.Artists()...)
 
 		tags := map[string]string{
-			"title":  strings.Join([]string{date.String(), ep.Show().ShowId(), ep.EpTitle(), ep.Show().ShowTitle()}, " "),
-			"artist": strings.Join(ep.Artists(), " "),
+			"title":  strings.Join([]string{date.Filename(), ep.Show().ShowId(), ep.EpTitle(), ep.Show().ShowTitle()}, " "),
+			"artist": strings.Join(artists, " "),
 			"album":  ep.Show().ShowTitle(),
 			"track":  date.Filename(),
 		}
