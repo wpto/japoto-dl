@@ -19,8 +19,6 @@ import (
 
 var ForceAudio bool
 var OnlyMux bool
-var FilterProviderList []string
-var FilterShowIdList []string
 
 func DownloadCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -40,40 +38,6 @@ func DownloadCmd() *cobra.Command {
 
 var ffwg sync.WaitGroup
 var history workdir.History = workdir.NewHistory("history.txt")
-
-func FilterProvider(src []provider.Provider, filter []string) []provider.Provider {
-	if len(filter) == 0 {
-		return src
-	}
-
-	result := []provider.Provider{}
-	for _, provider := range src {
-		for _, label := range filter {
-			if label == provider.Label() {
-				result = append(result, provider)
-				break
-			}
-		}
-	}
-	return result
-}
-
-func FilterShowId(src []model.ShowAccess, filter []string) []model.ShowAccess {
-	if len(filter) == 0 {
-		return src
-	}
-
-	result := []model.ShowAccess{}
-	for _, sa := range src {
-		for _, label := range filter {
-			if label == sa.ShowId() {
-				result = append(result, sa)
-				break
-			}
-		}
-	}
-	return result
-}
 
 func downloadRun(cmd *cobra.Command, args []string) {
 
@@ -167,38 +131,4 @@ func downloadRun(cmd *cobra.Command, args []string) {
 	fmt.Printf("loaded. waiting ffmpeg...\n")
 	ffwg.Wait()
 	fmt.Printf("muxed")
-}
-
-func MapEpisode(dl model.Loader, providers []provider.Provider, pl model.PrintLine, processEpisode func(ep model.Episode) error) {
-	providers = FilterProvider(providers, FilterProviderList)
-
-	for _, prov := range providers {
-		pl.SetPrefix(prov.Label())
-		pl.Status("loading feed")
-		shows, err := prov.GetFeed(dl)
-		if err != nil {
-			pl.Error(errors.Errorf("err: %v", err))
-			break
-		}
-
-		shows = FilterShowId(shows, FilterShowIdList)
-
-		for _, showAccess := range shows {
-			pl.SetPrefix(fmt.Sprintf("%s/%s", prov.Label(), showAccess.ShowId()))
-			pl.Status("loading show")
-			show, err := showAccess.GetShow(dl)
-			if err != nil {
-				pl.Error(errors.Errorf("showAccess: %v", err))
-				break
-			}
-
-			eps := show.GetEpisodes()
-			for _, ep := range eps {
-				err := processEpisode(ep)
-				if err != nil {
-					break
-				}
-			}
-		}
-	}
 }

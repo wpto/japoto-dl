@@ -2,15 +2,12 @@ package cmd
 
 import (
 	"fmt"
-	"log"
 
-	"github.com/adios/pprint"
 	"github.com/pgeowng/japoto-dl/dl"
+	"github.com/pgeowng/japoto-dl/model"
 	"github.com/pgeowng/japoto-dl/provider"
 	"github.com/spf13/cobra"
 )
-
-var ShowName string = ""
 
 func ListCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -20,57 +17,22 @@ func ListCmd() *cobra.Command {
 		Run:   listRun,
 	}
 
-	cmd.Flags().StringVarP(&ShowName, "show-only", "s", "", "Show only <name> show")
-
+	cmd.Flags().StringSliceVarP(&FilterProviderList, "provider-only", "p", []string{}, "Shows only selected providers")
+	cmd.Flags().StringSliceVarP(&FilterShowIdList, "show-only", "s", []string{}, "Shows only selected shows")
 	return cmd
 }
 
 func listRun(cmd *cobra.Command, args []string) {
-
 	d := dl.NewGrequests()
-	prov := provider.NewProviders()
-	shows, err := prov.Hibiki.GetFeed(d)
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
+	providers := provider.NewProvidersList()
+	pl := &ErrorPrintLine{}
 
-	// result := []Row{}
-
-	for _, showAccess := range shows {
-		if ShowName != "" && showAccess.ShowId() != ShowName {
-			continue
+	MapShow(d, providers, pl, func(show model.Show) error {
+		fmt.Println(show.PPrint().String())
+		eps := show.GetEpisodes()
+		for _, ep := range eps {
+			fmt.Println(ep.PPrint().String())
 		}
-
-		pp := pprint.NewNode(
-			pprint.WithColumns(
-				pprint.NewColumn(),
-				pprint.NewColumn(),
-				pprint.NewColumn(pprint.WithLeftAlignment()),
-				pprint.NewColumn(pprint.WithLeftAlignment()),
-				pprint.NewColumn(pprint.WithLeftAlignment()),
-			),
-		)
-
-		show, err := showAccess.GetShow(d)
-		if err != nil {
-			fmt.Println(err)
-			continue
-		}
-
-		p := show.PPrint().Pprint()
-		_, err = pp.Push(p...)
-		if err != nil {
-			fmt.Println(err)
-		}
-
-		for _, ep := range show.GetEpisodes() {
-			p = ep.PPrint().Pprint()
-			_, err = pp.Push(p...)
-			if err != nil {
-				fmt.Println(err)
-			}
-		}
-		pprint.Print(pp)
-	}
+		return nil
+	})
 }

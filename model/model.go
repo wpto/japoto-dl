@@ -1,6 +1,9 @@
 package model
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+)
 
 type Episode interface {
 	Artists() []string
@@ -79,4 +82,12 @@ func (a PPrintRow) Pprint() []interface{} {
 	}
 
 	return []interface{}{a.Attrs(), a.Date.String(), a.Ref, a.Note, cast}
+}
+
+func (a PPrintRow) String() string {
+	cast := ""
+	if len(a.Cast) != 0 {
+		cast = "# " + strings.Join(a.Cast, " ")
+	}
+	return fmt.Sprintf("%s %s %s %s %s", a.Attrs(), a.Date.String(), a.Ref, a.Note, cast)
 }

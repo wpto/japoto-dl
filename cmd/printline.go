@@ -24,6 +24,13 @@ func (pl *PrintLine) Error(err error) error {
 	return err
 }
 
+func (pl *PrintLine) Print(str string) {
+	for i := 0; i < (pl.lastLen - len(str)); i++ {
+		str += " "
+	}
+	fmt.Printf("\r%s\n", str)
+}
+
 func (pl *PrintLine) AddLoaded() {
 	pl.loaded++
 	pl.printStatus()
@@ -77,13 +84,23 @@ func (pl *PrintLine) printStatus() {
 	)
 
 	newLen := len(str)
-	if pl.lastLen > newLen {
-		for i := 0; i < (pl.lastLen - newLen); i++ {
-			str += " "
-		}
+	for i := 0; i < (pl.lastLen - newLen); i++ {
+		str += " "
 	}
 
 	pl.lastLen = newLen
 
 	fmt.Printf("\r%s", str)
+}
+
+type ErrorPrintLine struct{}
+
+func (e *ErrorPrintLine) SetChunk(count int)      {}
+func (e *ErrorPrintLine) AddChunk()               {}
+func (e *ErrorPrintLine) SetChunkCount(count int) {}
+func (e *ErrorPrintLine) SetPrefix(prefix string) {}
+func (e *ErrorPrintLine) Status(str string)       {}
+func (e *ErrorPrintLine) Error(err error) error {
+	fmt.Printf("%s\n", err.Error())
+	return err
 }
