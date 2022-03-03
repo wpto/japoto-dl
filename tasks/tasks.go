@@ -8,6 +8,7 @@ import (
 
 type Tasks struct {
 	ahls model.AudioHLS
+	file model.File
 }
 
 func (t *Tasks) AudioHLS() model.AudioHLS {

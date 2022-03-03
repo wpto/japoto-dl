@@ -13,7 +13,9 @@ var gopts *model.LoaderOpts = &model.LoaderOpts{
 	},
 }
 
-func (ep *OnsenEpisode) Download(loader model.Loader, tasks model.Tasks) error {
+func (ep *OnsenEpisode) Download(loader model.Loader, tasks model.Tasks, pl model.PrintLine) error {
+	pl.SetPrefix(fmt.Sprintf("%s/%s", ep.Show().Provider(), ep.EpId()))
+	pl.SetChunk(0)
 	hls := tasks.AudioHLS()
 
 	if ep.StreamingUrl == nil {
@@ -39,11 +41,11 @@ func (ep *OnsenEpisode) Download(loader model.Loader, tasks model.Tasks) error {
 	errcImg := make(chan error)
 	go func(errc chan<- error) {
 		if len(ep.PosterImageUrl) == 0 {
-			fmt.Printf("onsen.dl: note empty poster image for %s\n", ep.EpId())
+			pl.Error(errors.New("empty poster(1) image"))
 		}
 
 		if len(ep.showRef.Image.Url) == 0 {
-			fmt.Printf("onsen.dl: note empty show image for %s\n", ep.EpId())
+			pl.Error(errors.New("empty show(2) image"))
 		}
 
 		url := ep.PosterImageUrl
@@ -121,7 +123,7 @@ func (ep *OnsenEpisode) Download(loader model.Loader, tasks model.Tasks) error {
 						return
 					}
 
-					fmt.Print(".")
+					pl.AddChunk()
 					file.SetBody(body)
 					validateChan <- file
 				}
@@ -148,6 +150,7 @@ func (ep *OnsenEpisode) Download(loader model.Loader, tasks model.Tasks) error {
 		links := []model.File{}
 		links = append(links, keys...)
 		links = append(links, audio...)
+		pl.SetChunkCount(len(links))
 
 		for idx := range links {
 			select {
@@ -176,7 +179,7 @@ func (ep *OnsenEpisode) Download(loader model.Loader, tasks model.Tasks) error {
 
 	errImg := <-errcImg
 	if errImg != nil {
-		return errors.Wrap(errImg, "onsen.dl:")
+		return errors.Wrap(errImg, "onsen.dl")
 	}
 
 	return nil

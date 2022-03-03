@@ -7,7 +7,9 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (ep *HibikiEpisodeMedia) Download(loader model.Loader, tasks model.Tasks) error {
+func (ep *HibikiEpisodeMedia) Download(loader model.Loader, tasks model.Tasks, pl model.PrintLine) error {
+	pl.SetPrefix(fmt.Sprintf("%s/%s", ep.Show().Provider(), ep.EpId()))
+	pl.SetChunk(0)
 	hls := tasks.AudioHLS()
 
 	var checkObj struct {
@@ -104,7 +106,7 @@ func (ep *HibikiEpisodeMedia) Download(loader model.Loader, tasks model.Tasks) e
 						return
 					}
 
-					fmt.Print(".")
+					pl.AddChunk()
 					file.SetBody(body)
 					validateChan <- file
 				}
@@ -131,6 +133,7 @@ func (ep *HibikiEpisodeMedia) Download(loader model.Loader, tasks model.Tasks) e
 		links := []model.File{}
 		links = append(links, keys...)
 		links = append(links, audio...)
+		pl.SetChunkCount(len(links))
 
 		for idx := range links {
 			select {

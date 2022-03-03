@@ -13,13 +13,14 @@ import (
 	"github.com/pgeowng/japoto-dl/workdir"
 	"github.com/pgeowng/japoto-dl/workdir/muxer"
 	"github.com/pgeowng/japoto-dl/workdir/wd"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
 var ForceAudio bool
 var OnlyMux bool
-var FilterProvider []string
-var FilterShowId []string
+var FilterProviderList []string
+var FilterShowIdList []string
 
 func DownloadCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -31,8 +32,8 @@ func DownloadCmd() *cobra.Command {
 
 	cmd.Flags().BoolVarP(&ForceAudio, "force-audio", "a", true, "Forces video to remove video")
 	cmd.Flags().BoolVarP(&OnlyMux, "only-mux", "m", false, "Skips anything but muxing")
-	cmd.Flags().StringSliceVarP(&FilterProvider, "provider-only", "p", []string{}, "Shows only selected providers")
-	cmd.Flags().StringSliceVarP(&FilterShowId, "show-only", "s", []string{}, "Shows only selected shows")
+	cmd.Flags().StringSliceVarP(&FilterProviderList, "provider-only", "p", []string{}, "Shows only selected providers")
+	cmd.Flags().StringSliceVarP(&FilterShowIdList, "show-only", "s", []string{}, "Shows only selected shows")
 
 	return cmd
 }
@@ -40,84 +41,62 @@ func DownloadCmd() *cobra.Command {
 var ffwg sync.WaitGroup
 var history workdir.History = workdir.NewHistory("history.txt")
 
+func FilterProvider(src []provider.Provider, filter []string) []provider.Provider {
+	if len(filter) == 0 {
+		return src
+	}
+
+	result := []provider.Provider{}
+	for _, provider := range src {
+		for _, label := range filter {
+			if label == provider.Label() {
+				result = append(result, provider)
+				break
+			}
+		}
+	}
+	return result
+}
+
+func FilterShowId(src []model.ShowAccess, filter []string) []model.ShowAccess {
+	if len(filter) == 0 {
+		return src
+	}
+
+	result := []model.ShowAccess{}
+	for _, sa := range src {
+		for _, label := range filter {
+			if label == sa.ShowId() {
+				result = append(result, sa)
+				break
+			}
+		}
+	}
+	return result
+}
+
 func downloadRun(cmd *cobra.Command, args []string) {
+
 	d := dl.NewGrequests()
 	providers := provider.NewProvidersList()
 
-	for _, provider := range providers {
-		pass := len(FilterProvider) == 0
-		for _, label := range FilterProvider {
-			if label == provider.Label() {
-				pass = true
-				break
-			}
-		}
+	pl := &PrintLine{}
 
-		if !pass {
-			fmt.Println("skipping " + provider.Label())
-			continue
-		}
-
-		if err := loadProvider(d, provider); err != nil {
-			fmt.Printf("err: %v", err)
-		}
-	}
-
-	fmt.Printf("loaded. waiting ffmpeg...\n")
-	ffwg.Wait()
-	fmt.Printf("muxed")
-}
-
-func loadProvider(d model.Loader, p provider.Provider) error {
-	fmt.Printf("%s: %s\n", p.Label(), "getting feed")
-	shows, err := p.GetFeed(d)
-	if err != nil {
-		return err
-	}
-
-	for _, showAccess := range shows {
-		pass := len(FilterShowId) == 0
-		for _, showId := range FilterShowId {
-			if showId == showAccess.ShowId() {
-				pass = true
-				break
-			}
-		}
-		if !pass {
-			continue
-		}
-
-		fmt.Printf("%s/%s: %s\n", p.Label(), showAccess.ShowId(), "loading show")
-		show, err := showAccess.GetShow(d)
-		if err != nil {
-			return err
-		}
-
-		err = loadEpisodes(d, show)
-	}
-	return nil
-}
-
-func loadEpisodes(d model.Loader, show model.Show) error {
-	eps := show.GetEpisodes()
-	for _, ep := range eps {
-		canLoad := ep.CanDownload()
-
-		if !canLoad {
-			fmt.Printf("%s: %s\n", ep.EpId(), "cant load - skip")
-			continue
+	MapEpisode(d, providers, pl, func(ep model.Episode) error {
+		pl.SetPrefix(ep.EpId())
+		pl.Status("loading ep")
+		if !ep.CanDownload() {
+			return pl.Error(errors.New("cant load - skip"))
 		}
 
 		if ep.IsVideo() && !ForceAudio {
-			fmt.Printf("%s: saving video not implemented\n", ep.EpId())
-			continue
+			return pl.Error(errors.New("saving video not implemented"))
 		}
 
 		date := ep.Date()
 
 		if !date.IsGood() {
-			fmt.Printf("%s: bad date - %s\n", ep.EpId(), date.String())
-			continue
+			return pl.Error(errors.Errorf("bad date - %s\n", date.String()))
 		}
 
 		artists := []string{}
@@ -138,13 +117,12 @@ func loadEpisodes(d model.Loader, show model.Show) error {
 		salt := fmt.Sprintf("%s-%s--%s-u%d", date.Filename(), ep.Show().ShowId(), ep.Show().Provider(), ep.EpIdx())
 
 		if history.Check(salt) {
-			fmt.Printf("%s: already downloaded\n", ep.EpId())
-			continue
+			return pl.Error(errors.New("already downloaded"))
 		}
 
 		destPath := fmt.Sprintf("./%s.mp3", salt)
 
-		fmt.Printf("%s: loading\n", salt)
+		// fmt.Printf("%s: loading\n", salt)
 
 		ffm := muxer.NewFFMpegHLS(destPath, tags)
 		wd1 := wd.NewWd("./.cache", salt)
@@ -156,14 +134,16 @@ func loadEpisodes(d model.Loader, show model.Show) error {
 
 		t := tasks.NewTasks(wdHLS)
 		if !OnlyMux {
-			err := ep.Download(d, t)
+			pl.AddLoadedCount()
+			err := ep.Download(d, t, pl)
+			pl.AddLoaded()
 			if err != nil {
-				fmt.Printf("%s: error - %s\n", ep.EpId(), err)
-				break
+				return pl.Error(errors.Errorf("error - %s\n", err))
 			}
 		}
 
 		ffwg.Add(1)
+		pl.AddMuxedCount()
 		go func() {
 			var err error
 			if OnlyMux {
@@ -172,16 +152,53 @@ func loadEpisodes(d model.Loader, show model.Show) error {
 				err = wdHLS.Mux()
 			}
 			if err != nil {
-				fmt.Printf("ffmpeg error: %v", err)
+				pl.Error(errors.Errorf("ffmpeg error: %v", err))
 			} else {
 				history.Write(salt)
 				wd1.Clean()
 			}
 			ffwg.Done()
+			pl.AddMuxed()
 		}()
 
-		fmt.Printf("%s ", ep.EpTitle())
-	}
+		return nil
+	})
 
-	return nil
+	fmt.Printf("loaded. waiting ffmpeg...\n")
+	ffwg.Wait()
+	fmt.Printf("muxed")
+}
+
+func MapEpisode(dl model.Loader, providers []provider.Provider, pl model.PrintLine, processEpisode func(ep model.Episode) error) {
+	providers = FilterProvider(providers, FilterProviderList)
+
+	for _, prov := range providers {
+		pl.SetPrefix(prov.Label())
+		pl.Status("loading feed")
+		shows, err := prov.GetFeed(dl)
+		if err != nil {
+			pl.Error(errors.Errorf("err: %v", err))
+			break
+		}
+
+		shows = FilterShowId(shows, FilterShowIdList)
+
+		for _, showAccess := range shows {
+			pl.SetPrefix(fmt.Sprintf("%s/%s", prov.Label(), showAccess.ShowId()))
+			pl.Status("loading show")
+			show, err := showAccess.GetShow(dl)
+			if err != nil {
+				pl.Error(errors.Errorf("showAccess: %v", err))
+				break
+			}
+
+			eps := show.GetEpisodes()
+			for _, ep := range eps {
+				err := processEpisode(ep)
+				if err != nil {
+					break
+				}
+			}
+		}
+	}
 }

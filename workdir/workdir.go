@@ -13,12 +13,12 @@ type WorkdirFile interface {
 	SaveNamedRaw(name string, fileBody []byte) error
 	ResolveName(name string) string
 	WasWritten(name string) bool
+	Save(fileName, fileBody string) error
+	SaveRaw(fileName string, fileBody []byte) error
 }
 
 type WorkdirHLS interface {
 	WorkdirFile
-	Save(fileName, fileBody string) error
-	SaveRaw(fileName string, fileBody []byte) error
 }
 
 type WorkdirHLSMuxer interface {
