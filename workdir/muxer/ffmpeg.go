@@ -47,8 +47,6 @@ func (m *FFMpegHLS) Mux(inputPath string, imagePath *string) error {
 }
 
 func FFMpeg(args []string) error {
-	fmt.Println(args)
-
 	c := exec.Command("ffmpeg", args...)
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer

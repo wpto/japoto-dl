@@ -50,7 +50,7 @@ func downloadRun(cmd *cobra.Command, args []string) {
 		pl.SetPrefix(ep.EpId())
 		pl.Status("loading ep")
 		if !ep.CanDownload() {
-			return pl.Error(errors.New("cant load - skip"))
+			return errors.New("cant load - skip")
 		}
 
 		if ep.IsVideo() && !ForceAudio {
@@ -78,7 +78,7 @@ func downloadRun(cmd *cobra.Command, args []string) {
 			"track":  date.Filename(),
 		}
 
-		salt := fmt.Sprintf("%s-%s--%s-u%d", date.Filename(), ep.Show().ShowId(), ep.Show().Provider(), ep.EpIdx())
+		salt := fmt.Sprintf("%s-%s--%s-u%s", date.Filename(), ep.Show().ShowId(), ep.Show().Provider(), ep.EpIdx())
 
 		if history.Check(salt) {
 			return pl.Error(errors.New("already downloaded"))

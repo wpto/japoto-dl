@@ -3,6 +3,7 @@ package hibiki
 import (
 	"fmt"
 	"reflect"
+	"strconv"
 	"time"
 
 	"github.com/pgeowng/japoto-dl/model"
@@ -53,7 +54,7 @@ func (m *HibikiEpisodeMedia) Date() model.Date {
 }
 
 func (m *HibikiEpisodeMedia) EpId() string {
-	return fmt.Sprintf("%s/%d/%d", m.showRef.ShowId(), m.epRef.Id, m.Id)
+	return fmt.Sprintf("%s/%s", m.showRef.ShowId(), m.EpIdx())
 }
 
 func (m *HibikiEpisodeMedia) EpTitle() string {
@@ -86,6 +87,8 @@ func (m *HibikiEpisodeMedia) PPrint() model.PPrintRow {
 	}
 }
 
-func (m *HibikiEpisodeMedia) EpIdx() int {
-	return m.Id
+func (m *HibikiEpisodeMedia) EpIdx() string {
+	epid := strconv.FormatInt(int64(m.epRef.Id), 35)
+	mid := strconv.FormatInt(int64(m.Id), 35)
+	return fmt.Sprintf("%sz%s", epid, mid)
 }

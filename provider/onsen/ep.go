@@ -124,7 +124,7 @@ func parseStreamingUrlDate(url string, showId string) (*model.Date, error) {
 }
 
 func (ep *OnsenEpisode) EpId() string {
-	return fmt.Sprintf("%s/%d", ep.ShowId(), ep.Id)
+	return fmt.Sprintf("%s/%s", ep.ShowId(), ep.EpIdx())
 }
 
 func (ep *OnsenEpisode) EpTitle() string {
@@ -165,6 +165,7 @@ func (ep *OnsenEpisode) Show() model.Show {
 	return c
 }
 
-func (ep *OnsenEpisode) EpIdx() int {
-	return ep.Id
+func (ep *OnsenEpisode) EpIdx() string {
+	epid := strconv.FormatInt(int64(ep.Id), 35)
+	return string(epid)
 }

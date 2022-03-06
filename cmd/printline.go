@@ -18,17 +18,21 @@ type PrintLine struct {
 	prefix string
 }
 
+func (pl *PrintLine) appendSpace(str string) string {
+	for i := 0; i < (pl.lastLen - len(str)); i++ {
+		str += " "
+	}
+	return str
+}
+
 func (pl *PrintLine) Error(err error) error {
-	fmt.Printf("\r%s: %s\n", pl.prefix, err.Error())
-	// pl.printStatus()
+	res := fmt.Sprintf("\r%s: %s\n", pl.prefix, err.Error())
+	fmt.Print(pl.appendSpace(res))
 	return err
 }
 
 func (pl *PrintLine) Print(str string) {
-	for i := 0; i < (pl.lastLen - len(str)); i++ {
-		str += " "
-	}
-	fmt.Printf("\r%s\n", str)
+	fmt.Printf("\r%s\n", pl.appendSpace(str))
 }
 
 func (pl *PrintLine) AddLoaded() {
@@ -84,10 +88,7 @@ func (pl *PrintLine) printStatus() {
 	)
 
 	newLen := len(str)
-	for i := 0; i < (pl.lastLen - newLen); i++ {
-		str += " "
-	}
-
+	str = pl.appendSpace(str)
 	pl.lastLen = newLen
 
 	fmt.Printf("\r%s", str)
