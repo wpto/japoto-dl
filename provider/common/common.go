@@ -7,8 +7,8 @@ import (
 )
 
 var ext map[string]string = map[string]string{
-	"image/png": ".png",
-	"image/jpg": ".jpg",
+	"image/png":  ".png",
+	"image/jpeg": ".jpg",
 }
 
 func GuessContentType(file []byte) string {

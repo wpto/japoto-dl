@@ -3,26 +3,18 @@ package workdir
 import (
 	"fmt"
 
+	"github.com/pgeowng/japoto-dl/model"
 	"github.com/pgeowng/japoto-dl/workdir/muxer"
 	"github.com/pgeowng/japoto-dl/workdir/wd"
 	"github.com/pkg/errors"
 )
 
-type WorkdirFile interface {
-	SaveNamed(name string, fileBody string) error
-	SaveNamedRaw(name string, fileBody []byte) error
-	ResolveName(name string) string
-	WasWritten(name string) bool
-	Save(fileName, fileBody string) error
-	SaveRaw(fileName string, fileBody []byte) error
-}
-
 type WorkdirHLS interface {
-	WorkdirFile
+	model.WorkdirFile
 }
 
 type WorkdirHLSMuxer interface {
-	WorkdirFile
+	model.WorkdirFile
 	Mux() error
 	ForceMux() error
 }

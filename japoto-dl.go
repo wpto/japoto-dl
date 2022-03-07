@@ -9,5 +9,6 @@ func main() {
 	root := &cobra.Command{Use: "japoto-dl"}
 	root.AddCommand(cmd.ListCmd())
 	root.AddCommand(cmd.DownloadCmd())
+	root.AddCommand(cmd.ImageCmd())
 	root.Execute()
 }

@@ -14,6 +14,7 @@ type HibikiShow struct {
 		RollName *string `json:"roll_name"`
 	} `json:"casts"`
 	PcImageUrl string        `json:"pc_image_url"`
+	SpImageUrl string        `json:"sp_image_url"`
 	Episode    HibikiEpisode `json:"episode"`
 }
 

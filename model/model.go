@@ -29,6 +29,8 @@ type Show interface {
 	ShowId() string
 	ShowTitle() string
 
+	LoadImage(loader Loader, workdir WorkdirBase) error
+
 	PPrint() PPrintRow
 	Provider() string
 }
@@ -90,4 +92,17 @@ func (a PPrintRow) String() string {
 		cast = "# " + strings.Join(a.Cast, " ")
 	}
 	return fmt.Sprintf("%s %s %s %s %s", a.Attrs(), a.Date.String(), a.Ref, a.Note, cast)
+}
+
+type WorkdirBase interface {
+	Save(fileName, fileBody string) error
+	SaveRaw(fileName string, fileBody []byte) error
+}
+
+type WorkdirFile interface {
+	SaveNamed(name string, fileBody string) error
+	SaveNamedRaw(name string, fileBody []byte) error
+	ResolveName(name string) string
+	WasWritten(name string) bool
+	WorkdirBase
 }

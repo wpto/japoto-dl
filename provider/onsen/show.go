@@ -29,6 +29,9 @@ type OnsenShow struct {
 
 	ProgramInfo struct {
 		Title string `json:"title"`
+		Image struct {
+			Url string `json:"url"`
+		} `json:"image"`
 	} `json:"program_info"`
 
 	Image struct {
