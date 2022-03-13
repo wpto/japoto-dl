@@ -128,7 +128,7 @@ func downloadRun(cmd *cobra.Command, args []string) {
 		return nil
 	})
 
-	fmt.Printf("loaded. waiting ffmpeg...\n")
+	fmt.Printf("\nloaded. waiting ffmpeg...\n")
 	ffwg.Wait()
 	fmt.Printf("muxed")
 }
