@@ -3,10 +3,10 @@ package hibiki
 import (
 	"fmt"
 	"reflect"
-	"strconv"
 	"time"
 
 	"github.com/pgeowng/japoto-dl/model"
+	"github.com/pgeowng/japoto-dl/provider/common"
 	"github.com/pkg/errors"
 )
 
@@ -88,7 +88,5 @@ func (m *HibikiEpisodeMedia) PPrint() model.PPrintRow {
 }
 
 func (m *HibikiEpisodeMedia) EpIdx() string {
-	epid := strconv.FormatInt(int64(m.epRef.Id), 35)
-	mid := strconv.FormatInt(int64(m.Id), 35)
-	return fmt.Sprintf("%sz%s", epid, mid)
+	return common.EncodeIdx(m.epRef.Id, m.Id)
 }

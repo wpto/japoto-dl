@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/pgeowng/japoto-dl/model"
+	"github.com/pgeowng/japoto-dl/provider/common"
 	"github.com/pkg/errors"
 )
 
@@ -166,6 +167,5 @@ func (ep *OnsenEpisode) Show() model.Show {
 }
 
 func (ep *OnsenEpisode) EpIdx() string {
-	epid := strconv.FormatInt(int64(ep.Id), 35)
-	return string(epid)
+	return common.EncodeIdx(ep.Id)
 }
