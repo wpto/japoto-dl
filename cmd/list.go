@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/pgeowng/japoto-dl/cmd/printline"
 	"github.com/pgeowng/japoto-dl/dl"
 	"github.com/pgeowng/japoto-dl/model"
 	"github.com/pgeowng/japoto-dl/provider"
@@ -25,7 +26,7 @@ func ListCmd() *cobra.Command {
 func listRun(cmd *cobra.Command, args []string) {
 	d := dl.NewGrequests()
 	providers := provider.NewProvidersList()
-	pl := &ErrorPrintLine{}
+	pl := &printline.ErrorPrintLine{}
 
 	MapShow(d, providers, pl, func(show model.Show) error {
 		fmt.Println(show.PPrint().String())

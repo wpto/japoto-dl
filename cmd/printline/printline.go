@@ -1,6 +1,9 @@
-package cmd
+package printline
 
-import "fmt"
+import (
+	"fmt"
+	"io"
+)
 
 type PrintLine struct {
 	chunk      int
@@ -16,23 +19,38 @@ type PrintLine struct {
 
 	status string
 	prefix string
+
+	w io.Writer
 }
 
-func (pl *PrintLine) appendSpace(str string) string {
-	for i := 0; i < (pl.lastLen - len(str)); i++ {
+func New(writer io.Writer) *PrintLine {
+	return &PrintLine{w: writer}
+}
+
+func appendSpace(str string, targetSize int) string {
+	for i := targetSize - len(str); i > 0; i-- {
 		str += " "
 	}
 	return str
 }
 
 func (pl *PrintLine) Error(err error) error {
-	res := fmt.Sprintf("\r%s: %s\n", pl.prefix, err.Error())
-	fmt.Print(pl.appendSpace(res))
+	res := fmt.Sprintf("%s: %s", pl.prefix, err.Error())
+	pl.Println(res)
 	return err
 }
 
 func (pl *PrintLine) Print(str string) {
-	fmt.Printf("\r%s\n", pl.appendSpace(str))
+	newLen := len(str)
+	str = appendSpace(str, pl.lastLen)
+	fmt.Fprintf(pl.w, "\r%s", str)
+	pl.lastLen = newLen
+}
+
+func (pl *PrintLine) Println(str string) {
+	str = appendSpace(str, pl.lastLen)
+	fmt.Fprintf(pl.w, "\r%s\n", str)
+	pl.lastLen = 0
 }
 
 func (pl *PrintLine) AddLoaded() {
@@ -87,11 +105,7 @@ func (pl *PrintLine) printStatus() {
 		pl.prefix, pl.status,
 	)
 
-	newLen := len(str)
-	str = pl.appendSpace(str)
-	pl.lastLen = newLen
-
-	fmt.Printf("\r%s", str)
+	pl.Print(str)
 }
 
 type ErrorPrintLine struct{}

@@ -2,10 +2,12 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 	"sync"
 
+	"github.com/pgeowng/japoto-dl/cmd/printline"
 	"github.com/pgeowng/japoto-dl/dl"
 	"github.com/pgeowng/japoto-dl/model"
 	"github.com/pgeowng/japoto-dl/provider"
@@ -44,7 +46,8 @@ func downloadRun(cmd *cobra.Command, args []string) {
 	d := dl.NewGrequests()
 	providers := provider.NewProvidersList()
 
-	pl := &PrintLine{}
+	// pl := &printline.PrintLine{}
+	pl := printline.New(os.Stdout)
 
 	MapEpisode(d, providers, pl, func(ep model.Episode) error {
 		pl.SetPrefix(ep.EpId())
