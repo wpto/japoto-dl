@@ -21,6 +21,7 @@ import (
 
 var ForceAudio bool
 var OnlyMux bool
+var LoadedJSON bool
 
 func DownloadCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -34,6 +35,7 @@ func DownloadCmd() *cobra.Command {
 	cmd.Flags().BoolVarP(&OnlyMux, "only-mux", "m", false, "Skips anything but muxing")
 	cmd.Flags().StringSliceVarP(&FilterProviderList, "provider-only", "p", []string{}, "Shows only selected providers")
 	cmd.Flags().StringSliceVarP(&FilterShowIdList, "show-only", "s", []string{}, "Shows only selected shows")
+	cmd.Flags().BoolVarP(&LoadedJSON, "export-json", "j", true, "On save exports json about loaded show")
 
 	return cmd
 }
@@ -62,10 +64,6 @@ func downloadRun(cmd *cobra.Command, args []string) {
 
 		date := ep.Date()
 
-		if !date.IsGood() {
-			return pl.Error(errors.Errorf("bad date - %s\n", date.String()))
-		}
-
 		artists := []string{}
 
 		artists = append(artists, ep.Show().Artists()...)
@@ -83,11 +81,37 @@ func downloadRun(cmd *cobra.Command, args []string) {
 
 		salt := fmt.Sprintf("%s-%s--%s-u%s", date.Filename(), ep.Show().ShowId(), ep.Show().Provider(), ep.EpIdx())
 
+		filename := fmt.Sprintf("%s.mp3", salt)
+
+		var description LoadedModel
+		if LoadedJSON {
+			description.Basename = salt
+			description.Filename = filename
+
+			description.Provider = ep.Show().Provider()
+			description.Uid = ep.EpIdx()
+
+			description.Date = date.Filename()
+			description.ShowName = ep.Show().ShowId()
+
+			description.ShowTitle = ep.Show().ShowTitle()
+			description.EpisodeTitle = ep.EpTitle()
+
+			description.Artists = artists
+
+			fmt.Println(description)
+
+			if description.IsExists() {
+				return pl.Error(errors.New("description already exists"))
+			}
+
+		}
+
 		if history.Check(salt) {
 			return pl.Error(errors.New("already downloaded"))
 		}
 
-		destPath := fmt.Sprintf("./%s.mp3", salt)
+		destPath := fmt.Sprintf("./%s", filename)
 
 		// fmt.Printf("%s: loading\n", salt)
 
@@ -118,12 +142,19 @@ func downloadRun(cmd *cobra.Command, args []string) {
 			} else {
 				err = wdHLS.Mux()
 			}
+			if err == nil && LoadedJSON {
+				err = description.SaveFile()
+				if err != nil {
+					err = fmt.Errorf("save description file: %s", err)
+				}
+			}
 			if err != nil {
 				pl.Error(errors.Errorf("ffmpeg error: %v", err))
 			} else {
 				history.Write(salt)
 				wd1.Clean()
 			}
+
 			ffwg.Done()
 			pl.AddMuxed()
 		}()
