@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/pgeowng/japoto-dl/model"
 	"github.com/pkg/errors"
 )
 
@@ -37,4 +38,88 @@ func EncodeIdx(f int, nums ...int) string {
 	}
 
 	return strings.Join(rest, "z")
+}
+
+func LoadPlaylist(playlistUrl string, gopts *model.LoaderOpts, loader model.Loader, hls model.AudioHLS) (result []model.File, err error) {
+	playlistBody, err := loader.Text(playlistUrl, gopts)
+	if err != nil {
+		err = errors.Wrap(err, "load playlist")
+		return
+	}
+
+	result, err = hls.Playlist(*playlistBody)
+	if err != nil {
+		err = errors.Wrap(err, "save playlist")
+		return
+	}
+
+	return
+}
+
+func LoadImage(imageUrl string, gopts *model.LoaderOpts, loader model.Loader, hls model.AudioHLS) error {
+	imageBody, err := loader.Raw(imageUrl, gopts)
+	if err != nil {
+		return errors.Wrap(err, "load image")
+	}
+
+	file := model.NewFile("", "")
+	file.SetBody(imageBody)
+
+	err = hls.Image(file)
+	if err != nil {
+		return errors.Wrap(err, "save image")
+	}
+
+	return nil
+}
+
+func LoadTSAudio(playlistUrl string, gopts *model.LoaderOpts, ts model.File, loader model.Loader, hls model.AudioHLS) (keys []model.File, audio []model.File, tsaudioUrl string, err error) {
+	tsaudioUrl, err = ts.Url(playlistUrl)
+	if err != nil {
+		err = errors.Wrap(err, "onsen.dl.tsurl")
+		return
+	}
+
+	tsaudioBody, err := loader.Text(tsaudioUrl, gopts)
+	if err != nil {
+		err = errors.Wrap(err, "onsen.dl.tsget")
+		return
+	}
+
+	ts.SetBodyString(tsaudioBody)
+
+	keys, audio, err = hls.TSAudio(ts)
+	if err != nil {
+		err = errors.Wrap(err, "onsen.dl.tsparse")
+		return
+	}
+
+	return
+}
+
+func LoadChunk(tsaudioUrl string, gopts *model.LoaderOpts, file *model.File, loader model.Loader) (err error) {
+	url, err := file.Url(tsaudioUrl)
+	if err != nil {
+		err = errors.Wrap(err, "onsen.dl.file")
+		return
+	}
+
+	body, err := loader.Raw(url, gopts)
+	if err != nil {
+		err = errors.Wrap(err, "onsen.dl.file")
+		return
+	}
+
+	file.SetBody(body)
+	return nil
+}
+
+func FilterChunks(src []model.File, hls model.AudioHLS) []model.File {
+	result := []model.File{}
+	for _, file := range src {
+		if !hls.CheckAlreadyLoaded(file.Name()) {
+			result = append(result, file)
+		}
+	}
+	return result
 }

@@ -164,5 +164,16 @@ func downloadRun(cmd *cobra.Command, args []string) {
 
 	fmt.Printf("\nloaded. waiting ffmpeg...\n")
 	ffwg.Wait()
-	fmt.Printf("muxed")
+	fmt.Println("done")
+
+	folders, err := os.ReadDir("./.cache")
+	if err == nil {
+		if len(folders) > 0 {
+			fmt.Println("there are some redundant .cache folders")
+			fmt.Println("they are may never be used again.")
+			for _, dir := range folders {
+				fmt.Println(dir.Name())
+			}
+		}
+	}
 }

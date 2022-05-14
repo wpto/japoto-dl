@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/pgeowng/japoto-dl/model"
+	"github.com/pgeowng/japoto-dl/provider/common"
 	"github.com/pkg/errors"
 )
 
@@ -24,14 +25,15 @@ func (ep *OnsenEpisode) Download(loader model.Loader, tasks model.Tasks, pl mode
 
 	playlistUrl := *ep.StreamingUrl
 
-	playlistBody, err := loader.Text(playlistUrl, gopts)
-	if err != nil {
-		return errors.Wrap(err, "onsen.dl.plget")
+	// TODO remove pointers from ep
+	if ep.StreamingUrl == nil {
+		return fmt.Errorf("onsen.dl: streaming url is null. this cant happened.")
 	}
 
-	tsaudio, err := hls.Playlist(*playlistBody)
+	// TODO rewrites playlist file in any case. should be like that?
+	tsaudio, err := common.LoadPlaylist(playlistUrl, gopts, loader, hls)
 	if err != nil {
-		return errors.Wrap(err, "onsen.dl.plparse")
+		return errors.Wrap(err, "onsen")
 	}
 
 	if len(tsaudio) > 1 {
@@ -40,61 +42,34 @@ func (ep *OnsenEpisode) Download(loader model.Loader, tasks model.Tasks, pl mode
 
 	errcImg := make(chan error)
 	go func(errc chan<- error) {
-		if len(ep.PosterImageUrl) == 0 {
-			pl.Error(errors.New("empty poster(1) image"))
-		}
+		errc <- func() error {
+			imageUrl := ep.PosterImageUrl
 
-		if len(ep.showRef.Image.Url) == 0 {
-			pl.Error(errors.New("empty show(2) image"))
-		}
+			if len(imageUrl) == 0 {
+				imageUrl = ep.showRef.Image.Url
+			}
 
-		url := ep.PosterImageUrl
+			if len(imageUrl) == 0 {
+				return errors.New("onsen.dl: image not found")
+			}
 
-		if len(url) == 0 {
-			url = ep.showRef.Image.Url
-		}
+			return common.LoadImage(imageUrl, gopts, loader, hls)
+		}()
 
-		if len(url) == 0 {
-			errc <- errors.New("onsen.dl: image not found")
-			return
-		}
-
-		imageBody, err := loader.Raw(url, gopts)
-		if err != nil {
-			errc <- errors.Wrap(err, "onsen.dl.img")
-			return
-		}
-
-		file := model.NewFile("", "")
-		file.SetBody(imageBody)
-
-		err = hls.Image(file)
-		if err != nil {
-			errc <- errors.Wrap(err, "onsen.dl.img")
-			return
-		}
-
-		errc <- nil
 	}(errcImg)
 
 	for _, ts := range tsaudio {
-		tsaudioUrl, err := ts.Url(playlistUrl)
-		if err != nil {
-			return errors.Wrap(err, "onsen.dl.tsurl")
-		}
-		tsaudioBody, err := loader.Text(tsaudioUrl, gopts)
-		if err != nil {
-			return errors.Wrap(err, "onsen.dl.tsget")
-		}
-
-		ts.SetBodyString(tsaudioBody)
-
-		keys, audio, err := hls.TSAudio(ts)
+		keys, audio, tsaudioUrl, err := common.LoadTSAudio(playlistUrl, gopts, ts, loader, hls)
 		if err != nil {
 			return errors.Wrap(err, "onsen.dl.tsparse")
 		}
 
-		// total := len(keys) + len(audio)
+		filteredCount := len(keys) + len(audio)
+		keys = common.FilterChunks(keys, hls)
+		audio = common.FilterChunks(audio, hls)
+		if count := filteredCount - (len(keys) + len(audio)); count > 0 {
+			fmt.Printf("already loaded %d files: continue...\n", count)
+		}
 
 		done := make(chan struct{})
 
@@ -111,20 +86,12 @@ func (ep *OnsenEpisode) Download(loader model.Loader, tasks model.Tasks, pl mode
 				case <-done:
 					return
 				default:
-					url, err := file.Url(tsaudioUrl)
+					err := common.LoadChunk(tsaudioUrl, gopts, file, loader)
 					if err != nil {
-						loadError <- errors.Wrap(err, "onsen.dl.file")
+						loadError <- err
 						return
 					}
-
-					body, err := loader.Raw(url, gopts)
-					if err != nil {
-						loadError <- errors.Wrap(err, "onsen.dl.file")
-						return
-					}
-
 					pl.AddChunk()
-					file.SetBody(body)
 					validateChan <- file
 				}
 			}

@@ -2,6 +2,7 @@ package workdir
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/pgeowng/japoto-dl/model"
 	"github.com/pgeowng/japoto-dl/workdir/muxer"
@@ -102,4 +103,16 @@ func (wd *Workdir) ForceMux() error {
 		return errors.Wrap(err, "wd.mux")
 	}
 	return nil
+}
+
+func (wd *Workdir) AlreadyLoadedChunks() map[string]bool {
+	result := map[string]bool{}
+	files, err := os.ReadDir(wd.CacheDir())
+	if err == nil {
+		for _, file := range files {
+			result[file.Name()] = true
+		}
+	}
+
+	return result
 }

@@ -104,5 +104,6 @@ type WorkdirFile interface {
 	SaveNamedRaw(name string, fileBody []byte) error
 	ResolveName(name string) string
 	WasWritten(name string) bool
+	AlreadyLoadedChunks() map[string]bool
 	WorkdirBase
 }
