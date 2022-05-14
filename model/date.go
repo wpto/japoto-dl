@@ -37,7 +37,7 @@ func (d *Date) String() string {
 }
 
 func (d *Date) Filename() string {
-	result := []string{"00", "00", "00"}
+	result := []string{"--", "--", "--"}
 	if d.Year > 0 {
 		result[0] = fmt.Sprintf("%02d", d.Year%100)
 	}

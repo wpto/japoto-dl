@@ -85,6 +85,11 @@ func TestExtract(t *testing.T) {
 			2022, 2, 8,
 			"41-2",
 		},
+		{"https://onsen-ma3phlsvod.sslcs.cdngc.net/onsen-ma3pvod/_definst_/archive/survey_01.mp4/playlist.m3u8", "survey",
+			false,
+			-1, -1, -1,
+			"",
+		},
 	}
 
 	for _, c := range cases {

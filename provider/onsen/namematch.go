@@ -25,6 +25,7 @@ var mistakes map[string][]string = map[string][]string{
 	"tane":            {"tate"},
 	"fuchigami_mai":   {"fuchigamimai"},
 	"ore-ski":         {"ore.ski"},
+	"techno-roid":     {"technoroid"},
 }
 
 func Extract(streamingUrl string, showId string) (*Guess, error) {
@@ -32,7 +33,8 @@ func Extract(streamingUrl string, showId string) (*Guess, error) {
 
 	matchYM := reYM.FindStringSubmatch(streamingUrl)
 	if matchYM == nil {
-		return nil, errors.New("/yyyymm/ not found")
+		return &Guess{-1, -1, -1, ""}, nil
+		// return nil, errors.New("/yyyymm/ not found")
 	}
 
 	yearStr := matchYM[1]
