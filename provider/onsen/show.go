@@ -93,11 +93,10 @@ func (show *OnsenShow) Artists() []string {
 
 	for _, pg := range show.PersonalityGroups {
 		for _, p := range pg.Roles {
-			str := p.Name
+			result = append(result, p.Name)
 			if p.Role != nil && len(*p.Role) > 0 {
-				str += "(" + *p.Role + ")"
+				result = append(result, *p.Role)
 			}
-			result = append(result, str)
 		}
 	}
 

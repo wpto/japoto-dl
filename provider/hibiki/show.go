@@ -25,11 +25,10 @@ func (show *HibikiShow) ShowId() string {
 func (show *HibikiShow) Artists() []string {
 	result := []string{}
 	for _, c := range show.Casts {
-		str := c.Name
+		result = append(result, c.Name)
 		if c.RollName != nil && len(*c.RollName) > 0 {
-			str += "(" + *c.RollName + ")"
+			result = append(result, *c.RollName)
 		}
-		result = append(result, str)
 	}
 	return result
 }
