@@ -7,10 +7,12 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/pgeowng/japoto-dl/cmd/printline"
 	"github.com/pgeowng/japoto-dl/dl"
 	"github.com/pgeowng/japoto-dl/model"
 	"github.com/pgeowng/japoto-dl/provider"
+	"github.com/pgeowng/japoto-dl/provider/hibiki"
+	"github.com/pgeowng/japoto-dl/provider/onsen"
+	"github.com/pgeowng/japoto-dl/repo/status"
 	"github.com/pgeowng/japoto-dl/tasks"
 	"github.com/pgeowng/japoto-dl/workdir"
 	"github.com/pgeowng/japoto-dl/workdir/muxer"
@@ -48,18 +50,18 @@ func downloadRun(cmd *cobra.Command, args []string) {
 	d := dl.NewGrequests()
 	providers := provider.NewProvidersList()
 
-	// pl := &printline.PrintLine{}
-	pl := printline.New(os.Stdout)
+	// status := &printline.PrintLine{}
+	status := status.New(os.Stdout)
 
-	MapEpisode(d, providers, pl, func(ep model.Episode) error {
-		pl.SetPrefix(ep.EpId())
-		pl.Status("loading ep")
+	MapEpisode(d, providers, status, func(ep model.Episode) error {
+		status.SetPrefix(ep.EpId())
+		status.Status("loading ep")
 		if !ep.CanDownload() {
 			return errors.New("cant load - skip")
 		}
 
 		if ep.IsVideo() && !ForceAudio {
-			return pl.Error(errors.New("saving video not implemented"))
+			return status.Error(errors.New("saving video not implemented"))
 		}
 
 		date := ep.Date()
@@ -102,13 +104,13 @@ func downloadRun(cmd *cobra.Command, args []string) {
 			fmt.Println(description)
 
 			if description.IsExists() {
-				return pl.Error(errors.New("description already exists"))
+				return status.Error(errors.New("description already exists"))
 			}
 
 		}
 
 		if history.Check(salt) {
-			return pl.Error(errors.New("already downloaded"))
+			return status.Error(errors.New("already downloaded"))
 		}
 
 		destPath := fmt.Sprintf("./%s", filename)
@@ -123,18 +125,34 @@ func downloadRun(cmd *cobra.Command, args []string) {
 			"image":    "image",
 		})
 
+		// statusRepo := status.NewLoadStatus(ep.Show().Provider(), ep.EpId())
+
+		status.SetEp(ep.Show().Provider(), ep.EpIdx())
+
 		t := tasks.NewTasks(wdHLS)
 		if !OnlyMux {
-			pl.AddLoadedCount()
-			err := ep.Download(d, t, pl)
-			pl.AddLoaded()
+			status.AddLoadedCount()
+			var ii interface{} = ep
+			var err error
+			switch v := ii.(type) {
+			case *hibiki.HibikiEpisodeMedia:
+				hibikiUC := hibiki.HibikiUsecase{}
+				err = hibikiUC.DownloadEpisode(d, t.AudioHLS(), status, v)
+			case *onsen.OnsenEpisode:
+				onsenUC := onsen.OnsenUsecase{}
+				err = onsenUC.DownloadEpisode(d, t.AudioHLS(), status, v)
+			default:
+				fmt.Printf("Provider %s download is not implemented\n", ep.Show().Provider())
+			}
+			// err := ep.Download(d, t, status)
+			status.AddLoaded()
 			if err != nil {
-				return pl.Error(errors.Errorf("error - %s\n", err))
+				return status.Error(errors.Errorf("error - %s\n", err))
 			}
 		}
 
 		ffwg.Add(1)
-		pl.AddMuxedCount()
+		status.AddMuxedCount()
 		go func() {
 			var err error
 			if OnlyMux {
@@ -149,14 +167,14 @@ func downloadRun(cmd *cobra.Command, args []string) {
 				}
 			}
 			if err != nil {
-				pl.Error(errors.Errorf("ffmpeg error: %v", err))
+				status.Error(errors.Errorf("ffmpeg error: %v", err))
 			} else {
 				history.Write(salt)
 				wd1.Clean()
 			}
 
 			ffwg.Done()
-			pl.AddMuxed()
+			status.AddMuxed()
 		}()
 
 		return nil

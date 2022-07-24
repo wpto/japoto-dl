@@ -9,7 +9,7 @@ type Episode interface {
 	Artists() []string
 	CanDownload() bool
 	Date() Date
-	Download(loader Loader, tasks Tasks, pl PrintLine) error
+	// Download(loader Loader, tasks Tasks, pl PrintLine) error
 	EpId() string
 	EpIdx() string // base62
 	EpTitle() string
