@@ -26,19 +26,22 @@ func (uc *OnsenUsecase) DownloadEpisode(loader types.Loader, hls types.AudioHLS,
 	}()
 
 	if ep.StreamingUrl == nil {
-		return fmt.Errorf("StreamingURL is not presented")
+		err = fmt.Errorf("StreamingURL is not presented")
+		return
 	}
 
-	playlistUrl := *ep.StreamingUrl
+	playlistURL = *ep.StreamingUrl
 
 	// TODO rewrites playlist file in any case. should be like that?
-	tsaudio, err := common.LoadPlaylist(playlistUrl, gopts, loader, hls)
+	tsaudio, err := common.LoadPlaylist(playlistURL, gopts, loader, hls)
 	if err != nil {
-		return errors.Wrap(err, "onsen")
+		err = errors.Wrap(err, "onsen")
+		return
 	}
 
 	if len(tsaudio) > 1 {
-		return errors.New("onsen.dl: tsaudio size > 1: not implemented")
+		err = errors.New("onsen.dl: tsaudio size > 1: not implemented")
+		return
 	}
 
 	errcImg := make(chan error)
@@ -60,9 +63,13 @@ func (uc *OnsenUsecase) DownloadEpisode(loader types.Loader, hls types.AudioHLS,
 	}(errcImg)
 
 	for _, ts := range tsaudio {
-		keys, audio, tsaudioUrl, err := common.LoadTSAudio(playlistUrl, gopts, ts, loader, hls)
+		var keys []model.File
+		var audio []model.File
+		var tsaudioUrl string
+		keys, audio, tsaudioUrl, err = common.LoadTSAudio(playlistURL, gopts, ts, loader, hls)
 		if err != nil {
-			return errors.Wrap(err, "onsen.dl.tsparse")
+			err = errors.Wrap(err, "onsen.dl.tsparse")
+			return
 		}
 
 		filteredCount := len(keys) + len(audio)
@@ -123,32 +130,33 @@ func (uc *OnsenUsecase) DownloadEpisode(loader types.Loader, hls types.AudioHLS,
 		for idx := range links {
 			select {
 			case loadChan <- &links[idx]:
-			case err := <-loadError:
+			case err = <-loadError:
 				close(done)
-				return errors.Wrap(err, "onsen.dl")
-			case err := <-validateError:
+				return
+			case err = <-validateError:
 				close(done)
-				return errors.Wrap(err, "onsen.dl")
+				return
 			}
 		}
 		close(loadChan)
 
 		select {
-		case err := <-loadError:
+		case err = <-loadError:
 			close(done)
-			return errors.Wrap(err, "onsen.dl")
-		case err := <-validateError:
+			return
+		case err = <-validateError:
 			if err != nil {
 				close(done)
-				return errors.Wrap(err, "onsen.validate")
+				err = fmt.Errorf("validate: %w", err)
+				return
 			}
 		}
 	}
 
 	errImg := <-errcImg
 	if errImg != nil {
-		return errors.Wrap(errImg, "onsen.dl")
+		return
 	}
 
-	return nil
+	return
 }

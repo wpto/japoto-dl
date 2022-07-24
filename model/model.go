@@ -17,6 +17,7 @@ type Episode interface {
 	// ShowId() string
 	// ShowTitle() string
 	IsVideo() bool
+	URL() string
 
 	Show() Show
 

@@ -66,6 +66,8 @@ func downloadRun(cmd *cobra.Command, args []string) {
 		return
 	}
 
+	archiveRepo.Migrate(archiveDB)
+
 	MapEpisode(d, providers, status, func(ep model.Episode) error {
 		status.SetPrefix(ep.EpId())
 		status.Status("loading ep")
@@ -97,35 +99,64 @@ func downloadRun(cmd *cobra.Command, args []string) {
 		salt := fmt.Sprintf("%s-%s--%s-u%s", date.Filename(), ep.Show().ShowId(), ep.Show().Provider(), ep.EpIdx())
 
 		filename := fmt.Sprintf("%s.mp3", salt)
-		historyKey := salt
-		description := LoadedModel{
-			HistoryKey: historyKey,
-			Basename:   salt,
-			Filename:   filename,
+		archiveKey := salt
+		description := model.ArchiveItem{
+			ArchiveKey: archiveKey,
+			ID:         salt,
 
-			Provider: ep.Show().Provider(),
-			Uid:      ep.EpIdx(),
+			Description: &model.ArchiveItemDescription{
+				Date:         date.Filename(),
+				Source:       ep.Show().Provider(),
+				ShowID:       ep.Show().ShowId(),
+				ShowTitle:    ep.Show().ShowTitle(),
+				EpisodeTitle: ep.EpTitle(),
+				Artists:      artists,
+			},
 
-			Date:     date.Filename(),
-			ShowName: ep.Show().ShowId(),
-
-			ShowTitle:    ep.Show().ShowTitle(),
-			EpisodeTitle: ep.EpTitle(),
-
-			Artists: artists,
+			Meta: &model.ArchiveItemMeta{
+				Filename: filename,
+			},
 		}
 
-		archiveStatus, err := archiveRepo.IsLoaded(archiveDB, historyKey)
-		if err != nil {
-			return status.Error(fmt.Errorf("check archive repo: %w", err))
+		var skip bool
+
+		{
+			archiveStatus, err := archiveRepo.IsLoaded(archiveDB, archiveKey)
+			if err != nil {
+				return status.Error(fmt.Errorf("check archive repo(key): %w", err))
+			}
+
+			if archiveStatus == archive.Loaded {
+				skip = skip || true
+			}
 		}
 
-		if loaded {
-			return status.Error(errors.New("description already exists"))
+		if !skip {
+			archiveStatus, err := archiveRepo.IsLoaded(archiveDB, salt)
+			if err != nil {
+				return status.Error(fmt.Errorf("check archive repo(salt): %w", err))
+			}
+
+			if archiveStatus == archive.Loaded {
+				skip = skip || true
+			}
+		}
+
+		if skip {
+			return status.Error(errors.New("already downloaded"))
 		}
 
 		if history.Check(salt) {
+			err = archiveRepo.Create(archiveDB, salt, archive.Loaded, model.ArchiveItem{})
+			if err != nil {
+				return status.Error(fmt.Errorf("migrate file history error: %w", err))
+			}
 			return status.Error(errors.New("already downloaded"))
+		}
+
+		err = archiveRepo.Create(archiveDB, archiveKey, archive.NotLoaded, description)
+		if err != nil {
+			return status.Error(fmt.Errorf("predownload: %w", err))
 		}
 
 		destPath := fmt.Sprintf("./%s", filename)
@@ -175,15 +206,21 @@ func downloadRun(cmd *cobra.Command, args []string) {
 			} else {
 				err = wdHLS.Mux()
 			}
+			if err != nil {
+				status.Error(errors.Errorf("ffmpeg error: %v", err))
+				return
+			}
+			if err = archiveRepo.SetStatus(archiveDB, archiveKey, archive.Loaded); err != nil {
+				status.Error(errors.Errorf("archive write: %w", err))
+				return
+			}
 			if err == nil && LoadedJSON {
 				err = description.SaveFile()
 				if err != nil {
 					err = fmt.Errorf("save description file: %s", err)
 				}
 			}
-			if err != nil {
-				status.Error(errors.Errorf("ffmpeg error: %v", err))
-			} else {
+			if err == nil {
 				history.Write(salt)
 				wd1.Clean()
 			}

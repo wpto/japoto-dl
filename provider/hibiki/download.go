@@ -28,22 +28,23 @@ func (uc *HibikiUsecase) DownloadEpisode(loader types.Loader, hls types.AudioHLS
 	}()
 
 	var checkObj struct {
-		PlaylistUrl string `json:"playlist_url"`
+		PlaylistURL string `json:"playlist_url"`
 	}
 	err = loader.JSON(fmt.Sprintf(playCheckURL, ep.Id), &checkObj, gopts)
 	if err != nil {
 		return
 	}
 
-	playlistUrl := checkObj.PlaylistUrl
+	playlistURL := checkObj.PlaylistURL
 
-	tsaudio, err := common.LoadPlaylist(playlistUrl, gopts, loader, hls)
+	tsaudio, err := common.LoadPlaylist(playlistURL, gopts, loader, hls)
 	if err != nil {
 		return
 	}
 
 	if len(tsaudio) > 1 {
-		return errors.New("Not implemented: tsaudio size > 1")
+		err = fmt.Errorf("Not implemented: tsaudio size > 1")
+		return
 	}
 
 	errcImg := make(chan error)
@@ -62,7 +63,7 @@ func (uc *HibikiUsecase) DownloadEpisode(loader types.Loader, hls types.AudioHLS
 		var keys []model.File
 		var audio []model.File
 		var tsaudioUrl string
-		keys, audio, tsaudioUrl, err = common.LoadTSAudio(playlistUrl, gopts, ts, loader, hls)
+		keys, audio, tsaudioUrl, err = common.LoadTSAudio(playlistURL, gopts, ts, loader, hls)
 		if err != nil {
 			return
 		}
@@ -129,32 +130,34 @@ func (uc *HibikiUsecase) DownloadEpisode(loader types.Loader, hls types.AudioHLS
 		for idx := range links {
 			select {
 			case loadChan <- &links[idx]:
-			case err := <-loadError:
+			case err = <-loadError:
 				close(done)
-				return errors.Wrap(err, "hibiki.dl")
-			case err := <-validateError:
+				return
+			case err = <-validateError:
 				close(done)
-				return errors.Wrap(err, "hibiki.dl")
+				return
 			}
 		}
 		close(loadChan)
 
 		select {
-		case err := <-loadError:
+		case err = <-loadError:
 			close(done)
-			return errors.Wrap(err, "hibiki.dl")
-		case err := <-validateError:
+			return
+		case err = <-validateError:
 			if err != nil {
 				close(done)
-				return errors.Wrap(err, "hibiki.validate")
+				err = fmt.Errorf("validate: %w", err)
+				return
 			}
 		}
 	}
 
 	errImg := <-errcImg
 	if errImg != nil {
-		return errImg
+		err = errImg
+		return
 	}
 
-	return nil
+	return
 }
