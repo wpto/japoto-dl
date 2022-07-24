@@ -12,6 +12,7 @@ import (
 	"github.com/pgeowng/japoto-dl/provider"
 	"github.com/pgeowng/japoto-dl/provider/hibiki"
 	"github.com/pgeowng/japoto-dl/provider/onsen"
+	"github.com/pgeowng/japoto-dl/repo/archive"
 	"github.com/pgeowng/japoto-dl/repo/status"
 	"github.com/pgeowng/japoto-dl/tasks"
 	"github.com/pgeowng/japoto-dl/workdir"
@@ -53,6 +54,18 @@ func downloadRun(cmd *cobra.Command, args []string) {
 	// status := &printline.PrintLine{}
 	status := status.New(os.Stdout)
 
+	archiveDB, err := archive.CreateDB("./japoto-archive.db")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	archiveRepo, err := archive.NewRepo()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
 	MapEpisode(d, providers, status, func(ep model.Episode) error {
 		status.SetPrefix(ep.EpId())
 		status.Status("loading ep")
@@ -84,29 +97,31 @@ func downloadRun(cmd *cobra.Command, args []string) {
 		salt := fmt.Sprintf("%s-%s--%s-u%s", date.Filename(), ep.Show().ShowId(), ep.Show().Provider(), ep.EpIdx())
 
 		filename := fmt.Sprintf("%s.mp3", salt)
+		historyKey := salt
+		description := LoadedModel{
+			HistoryKey: historyKey,
+			Basename:   salt,
+			Filename:   filename,
 
-		var description LoadedModel
-		if LoadedJSON {
-			description.Basename = salt
-			description.Filename = filename
+			Provider: ep.Show().Provider(),
+			Uid:      ep.EpIdx(),
 
-			description.Provider = ep.Show().Provider()
-			description.Uid = ep.EpIdx()
+			Date:     date.Filename(),
+			ShowName: ep.Show().ShowId(),
 
-			description.Date = date.Filename()
-			description.ShowName = ep.Show().ShowId()
+			ShowTitle:    ep.Show().ShowTitle(),
+			EpisodeTitle: ep.EpTitle(),
 
-			description.ShowTitle = ep.Show().ShowTitle()
-			description.EpisodeTitle = ep.EpTitle()
+			Artists: artists,
+		}
 
-			description.Artists = artists
+		archiveStatus, err := archiveRepo.IsLoaded(archiveDB, historyKey)
+		if err != nil {
+			return status.Error(fmt.Errorf("check archive repo: %w", err))
+		}
 
-			fmt.Println(description)
-
-			if description.IsExists() {
-				return status.Error(errors.New("description already exists"))
-			}
-
+		if loaded {
+			return status.Error(errors.New("description already exists"))
 		}
 
 		if history.Check(salt) {

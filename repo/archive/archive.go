@@ -1,61 +1,16 @@
 package archive
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 
+	"github.com/pgeowng/japoto-dl/model"
+
 	"crawshaw.io/sqlite"
 	"crawshaw.io/sqlite/sqlitex"
 )
-
-const dbFilename = "test.pool"
-
-// func main() {
-// 	if err := run(); err != nil {
-// 		fmt.Println(err)
-// 	}
-
-// 	fmt.Println("exit")
-// }
-
-// func run() (err error) {
-
-// 	repo := NewArchive(pool)
-// 	err = repo.Migrate()
-// 	if err != nil {
-// 		return
-// 	}
-
-// 	_, err = repo.Create(Website{
-// 		ID:   0,
-// 		Name: "World",
-// 		URL:  "http://www.sqlite.org",
-// 		Rank: 2,
-// 	})
-// 	if err != nil {
-// 		fmt.Println(err)
-// 	}
-
-// 	_, err = repo.Create(Website{
-// 		ID:   0,
-// 		Name: "Another",
-// 		URL:  "http://www.google.com",
-// 		Rank: 1,
-// 	})
-// 	if err != nil {
-// 		fmt.Println(err)
-// 	}
-
-// 	all, err := repo.All()
-// 	if err != nil {
-// 		return
-// 	}
-
-// 	fmt.Println(all)
-
-// 	return
-// }
 
 var (
 	ErrDuplicate = errors.New("record already exists")
@@ -64,8 +19,8 @@ var (
 type Archive interface {
 	Migrate(archive *sqlitex.Pool) error
 	IsLoaded(archive *sqlitex.Pool, key string) (ok bool, err error)
-	SetLoaded(archive *sqlitex.Pool, key string, loaded bool) error
-	Create(archive *sqlitex.Pool, key string, loaded bool, archiveItem ArchiveItem) error
+	SetLoaded(archive *sqlitex.Pool, key string, status bool) error
+	Create(archive *sqlitex.Pool, key string, status bool, archiveItem model.ArchiveItem) error
 }
 
 type ArchiveRepo struct{}
@@ -85,7 +40,7 @@ func NewRepo() (archive *ArchiveRepo, err error) {
 }
 
 func (r *ArchiveRepo) Migrate(pool *sqlitex.Pool) (err error) {
-	conn := pool.Get(nil)
+	conn := pool.Get(context.TODO())
 	if conn == nil {
 		return
 	}
@@ -105,11 +60,11 @@ func (r *ArchiveRepo) Migrate(pool *sqlitex.Pool) (err error) {
 		return
 	}
 
-	query = `CREATE TABLE IF NOT EXISTS history(key TEXT PRIMARY KEY, loaded INTEGER, data json);`
+	query = `CREATE TABLE IF NOT EXISTS history(key TEXT PRIMARY KEY, status INTEGER, data json);`
 	stmt = conn.Prep(query)
 	defer func() {
 		if err == nil {
-			if err := stmt.Finalize(); err != nil {
+			if err = stmt.Finalize(); err != nil {
 				err = fmt.Errorf("ArchiveRepo.Migrate: Finalize: %w", err)
 				return
 			}
@@ -126,19 +81,28 @@ type HistoryItem struct {
 	Url string `json:"string"`
 }
 
-func (r *ArchiveRepo) IsLoaded(pool *sqlitex.Pool, key string) (ok bool, err error) {
-	conn := pool.Get(nil)
+type ArchiveEntryStatus int
+
+const (
+	Unknown ArchiveEntryStatus = iota
+	NotExists
+	NotLoaded
+	Loaded
+)
+
+func (r *ArchiveRepo) IsLoaded(pool *sqlitex.Pool, key string) (status ArchiveEntryStatus, err error) {
+	conn := pool.Get(context.TODO())
 	if conn == nil {
 		return
 	}
 	defer pool.Put(conn)
 
-	query := `SELECT EXISTS(SELECT 1 FROM history WHERE key = $key AND loaded = TRUE);`
+	query := `SELECT status FROM history WHERE key = $key;`
 
 	stmt := conn.Prep(query)
 	defer func() {
 		if err == nil {
-			if err := stmt.Finalize(); err != nil {
+			if err = stmt.Finalize(); err != nil {
 				err = fmt.Errorf("ArchiveRepo.IsLoaded: Finalize: %w", err)
 				return
 			}
@@ -146,36 +110,41 @@ func (r *ArchiveRepo) IsLoaded(pool *sqlitex.Pool, key string) (ok bool, err err
 	}()
 
 	stmt.SetText("$key", key)
-	if _, err := stmt.Step(); err != nil {
-		return false, err
+	rowReturned, err := stmt.Step()
+	if err != nil {
+		err = fmt.Errorf("ArchiveRepo.IsLoaded: Step: %w", err)
+		return
 	}
 
-	columnName := stmt.ColumnName(0)
-	result := stmt.GetInt64(columnName)
+	if rowReturned {
+		status = ArchiveEntryStatus(stmt.GetInt64("status"))
+	} else {
+		status = NotExists
+	}
 
-	return result > 0, nil
+	return
 }
 
-func (r *ArchiveRepo) SetLoaded(pool *sqlitex.Pool, key string, loaded bool) (err error) {
-	conn := pool.Get(nil)
+func (r *ArchiveRepo) SetStatus(pool *sqlitex.Pool, key string, status ArchiveEntryStatus) (err error) {
+	conn := pool.Get(context.TODO())
 	if conn == nil {
 		return
 	}
 	defer pool.Put(conn)
 
-	query := `INSERT INTO history(key, loaded, data) VALUES ($key, $loaded, '{}') ON CONFLICT (key) DO UPDATE SET loaded = $loaded;`
+	query := `INSERT INTO history(key, status, data) VALUES ($key, $status, '{}') ON CONFLICT (key) DO UPDATE SET status = $status;`
 	stmt := conn.Prep(query)
 	defer func() {
 		if err == nil {
-			if err := stmt.Finalize(); err != nil {
-				err = fmt.Errorf("ArchiveRepo.SetLoaded: Finalize: %w", err)
+			if err = stmt.Finalize(); err != nil {
+				err = fmt.Errorf("ArchiveRepo.SetStatus: Finalize: %w", err)
 				return
 			}
 		}
 	}()
 
 	stmt.SetText("$key", key)
-	stmt.SetBool("$loaded", loaded)
+	stmt.SetInt64("$status", int64(status))
 	if _, err = stmt.Step(); err != nil {
 		return
 	}
@@ -183,23 +152,23 @@ func (r *ArchiveRepo) SetLoaded(pool *sqlitex.Pool, key string, loaded bool) (er
 	return
 }
 
-func (r *ArchiveRepo) Create(pool *sqlitex.Pool, key string, loaded bool, archiveItem ArchiveItem) (err error) {
+func (r *ArchiveRepo) Create(pool *sqlitex.Pool, key string, status ArchiveEntryStatus, archiveItem model.ArchiveItem) (err error) {
 	bytes, err := json.Marshal(archiveItem)
 	if err != nil {
 		return fmt.Errorf("ArchiveRepo.Create: can't marshal archiveItem: %w", err)
 	}
 
-	conn := pool.Get(nil)
+	conn := pool.Get(context.TODO())
 	if conn == nil {
 		return fmt.Errorf("ArchiveRepo.Create: couldn't get connection for pool")
 	}
 	defer pool.Put(conn)
 
-	query := "INSERT INTO history(key, loaded, data) values($key, $loaded, $data);"
+	query := "INSERT INTO history(key, status, data) values($key, $status, $data);"
 	stmt := conn.Prep(query)
 	defer func() {
 		if err == nil {
-			if err := stmt.Finalize(); err != nil {
+			if err = stmt.Finalize(); err != nil {
 				err = fmt.Errorf("ArchiveRepo.Create: Finalize: %w", err)
 				return
 			}
@@ -207,7 +176,7 @@ func (r *ArchiveRepo) Create(pool *sqlitex.Pool, key string, loaded bool, archiv
 	}()
 
 	stmt.SetText("$key", key)
-	stmt.SetBool("$loaded", loaded)
+	stmt.SetInt64("$status", int64(status))
 	stmt.SetText("$data", string(bytes))
 
 	if _, err = stmt.Step(); err != nil {
@@ -215,49 +184,4 @@ func (r *ArchiveRepo) Create(pool *sqlitex.Pool, key string, loaded bool, archiv
 	}
 
 	return
-}
-
-type Item struct {
-	Uid      string `json:"uid"`
-	Basename string `json:"base_name"`
-	Filename string `json:"file_name"`
-
-	Date     string `json:"date"`
-	Provider string `json:"provider"`
-	ShowName string `json:"show_name"`
-
-	ShowTitle string `json:"show_title"`
-	EpTitle   string `json:"ep_title"`
-
-	Artists []string `json:"artists"`
-
-	Size      *int `json:"size"`
-	MessageId *int `json:"message_id"`
-	Duration  *int `json:"duration"`
-}
-
-type ArchiveItem struct {
-	HistoryKey  string                  `json:"history_key"`
-	Description *ArchiveItemDescription `json:"desc,omitempty"`
-	Meta        *ArchiveItemMeta        `json:"meta,omitempty"`
-	Chan        *ArchiveItemChan        `json:"chan,omitempty"`
-}
-
-type ArchiveItemDescription struct {
-	Date      string   `json:"date"`
-	Source    string   `json:"source"`
-	ShowId    string   `json:"show_id"`
-	ShowTitle string   `json:"show_title"`
-	EpTitle   string   `json:"ep_title"`
-	Artists   []string `json:"artists"`
-}
-
-type ArchiveItemMeta struct {
-	Filename string `json:"filename"`
-	Duration *int   `json:"duration,omitempty"`
-	Size     *int   `json:"size,omitempty"`
-}
-
-type ArchiveItemChan struct {
-	MessageId int `json:"msg_id,omitempty"`
 }
