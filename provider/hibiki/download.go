@@ -6,24 +6,36 @@ import (
 	"github.com/pgeowng/japoto-dl/model"
 	"github.com/pgeowng/japoto-dl/provider/common"
 	"github.com/pkg/errors"
+
+	"github.com/pgeowng/japoto-dl/internal/types"
 )
 
-func (ep *HibikiEpisodeMedia) Download(loader model.Loader, tasks model.Tasks, pl model.PrintLine) error {
-	pl.SetPrefix(fmt.Sprintf("%s/%s", ep.Show().Provider(), ep.EpId()))
-	pl.SetChunk(0)
-	hls := tasks.AudioHLS()
+const (
+	playCheckURL = "https://vcms-api.hibiki-radio.jp/api/v1/videos/play_check?video_id=%d"
+)
+
+type HibikiUsecase struct {
+	status types.LoadStatus
+	loader types.Loader
+	hls    types.AudioHLS
+}
+
+func (uc *HibikiUsecase) DownloadEpisode(pl model.PrintLine, ep HibikiEpisodeMedia) error {
+	// TODO: move outsize download function
+	// pl.SetPrefix(fmt.Sprintf("%s/%s", ep.Show().Provider(), ep.EpId()))
+	// pl.SetChunk(0)
 
 	var checkObj struct {
 		PlaylistUrl string `json:"playlist_url"`
 	}
-	err := loader.JSON("https://vcms-api.hibiki-radio.jp/api/v1/videos/play_check?video_id="+fmt.Sprint(ep.Id), &checkObj, gopts)
+	err := uc.loader.JSON(fmt.Sprintf(playCheckURL, ep.Id), &checkObj, gopts)
 	if err != nil {
 		return errors.Wrap(err, "hibiki.dl.check")
 	}
 
 	playlistUrl := checkObj.PlaylistUrl
 
-	tsaudio, err := common.LoadPlaylist(playlistUrl, gopts, loader, hls)
+	tsaudio, err := common.LoadPlaylist(playlistUrl, gopts, uc.loader, uc.hls)
 	if err != nil {
 		return errors.Wrap(err, "hibiki.dl.playlist")
 	}
@@ -40,19 +52,19 @@ func (ep *HibikiEpisodeMedia) Download(loader model.Loader, tasks model.Tasks, p
 				return errors.New("hibiki.dl.image: not found")
 			}
 
-			return common.LoadImage(imageUrl, gopts, loader, hls)
+			return common.LoadImage(imageUrl, gopts, uc.loader, uc.hls)
 		}()
 	}(errcImg)
 
 	for _, ts := range tsaudio {
-		keys, audio, tsaudioUrl, err := common.LoadTSAudio(playlistUrl, gopts, ts, loader, hls)
+		keys, audio, tsaudioUrl, err := common.LoadTSAudio(playlistUrl, gopts, ts, uc.loader, uc.hls)
 		if err != nil {
 			return errors.Wrap(err, "hibiki.dl.ts")
 		}
 
 		filteredCount := len(keys) + len(audio)
-		keys = common.FilterChunks(keys, hls)
-		audio = common.FilterChunks(audio, hls)
+		keys = common.FilterChunks(keys, uc.hls)
+		audio = common.FilterChunks(audio, uc.hls)
 		if count := filteredCount - (len(keys) + len(audio)); count > 0 {
 			fmt.Printf("already loaded %d files: continue...\n", count)
 		}
@@ -74,13 +86,13 @@ func (ep *HibikiEpisodeMedia) Download(loader model.Loader, tasks model.Tasks, p
 				case <-done:
 					return
 				default:
-					err := common.LoadChunk(tsaudioUrl, gopts, file, loader)
+					err := common.LoadChunk(tsaudioUrl, gopts, file, uc.loader)
 					if err != nil {
 						loadError <- errors.Wrap(err, "hibiki.dl.file")
 						return
 					}
 
-					pl.AddChunk()
+					uc.status.Inc(1)
 					validateChan <- file
 				}
 			}
@@ -93,7 +105,7 @@ func (ep *HibikiEpisodeMedia) Download(loader model.Loader, tasks model.Tasks, p
 				case <-done:
 					return
 				default:
-					err = tasks.AudioHLS().Validate(*file)
+					err = uc.hls.Validate(*file)
 					if err != nil {
 						validateError <- errors.Wrap(err, "hibiki.dl.validate")
 					}
@@ -106,7 +118,8 @@ func (ep *HibikiEpisodeMedia) Download(loader model.Loader, tasks model.Tasks, p
 		links := []model.File{}
 		links = append(links, keys...)
 		links = append(links, audio...)
-		pl.SetChunkCount(len(links))
+		uc.status.Total(len(links))
+		// pl.SetChunkCount(len(links))
 
 		for idx := range links {
 			select {
