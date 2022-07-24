@@ -20,28 +20,34 @@ type HibikiUsecase struct {
 	hls    types.AudioHLS
 }
 
-func (uc *HibikiUsecase) DownloadEpisode(pl model.PrintLine, ep HibikiEpisodeMedia) error {
+func (uc *HibikiUsecase) DownloadEpisode(ep HibikiEpisodeMedia) (err error) {
 	// TODO: move outsize download function
 	// pl.SetPrefix(fmt.Sprintf("%s/%s", ep.Show().Provider(), ep.EpId()))
 	// pl.SetChunk(0)
 
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("HibikiUsecase.DownloadEpisode: %w", err)
+		}
+	}()
+
 	var checkObj struct {
 		PlaylistUrl string `json:"playlist_url"`
 	}
-	err := uc.loader.JSON(fmt.Sprintf(playCheckURL, ep.Id), &checkObj, gopts)
+	err = uc.loader.JSON(fmt.Sprintf(playCheckURL, ep.Id), &checkObj, gopts)
 	if err != nil {
-		return errors.Wrap(err, "hibiki.dl.check")
+		return
 	}
 
 	playlistUrl := checkObj.PlaylistUrl
 
 	tsaudio, err := common.LoadPlaylist(playlistUrl, gopts, uc.loader, uc.hls)
 	if err != nil {
-		return errors.Wrap(err, "hibiki.dl.playlist")
+		return
 	}
 
 	if len(tsaudio) > 1 {
-		return errors.New("hibiki.dl.playlist: tsaudio size > 1: not implemented")
+		return errors.New("Not implemented: tsaudio size > 1")
 	}
 
 	errcImg := make(chan error)
@@ -49,7 +55,7 @@ func (uc *HibikiUsecase) DownloadEpisode(pl model.PrintLine, ep HibikiEpisodeMed
 		errc <- func() error {
 			imageUrl := ep.showRef.PcImageUrl
 			if len(imageUrl) == 0 {
-				return errors.New("hibiki.dl.image: not found")
+				return errors.New("ImageURL not found")
 			}
 
 			return common.LoadImage(imageUrl, gopts, uc.loader, uc.hls)
@@ -57,9 +63,12 @@ func (uc *HibikiUsecase) DownloadEpisode(pl model.PrintLine, ep HibikiEpisodeMed
 	}(errcImg)
 
 	for _, ts := range tsaudio {
-		keys, audio, tsaudioUrl, err := common.LoadTSAudio(playlistUrl, gopts, ts, uc.loader, uc.hls)
+		var keys []model.File
+		var audio []model.File
+		var tsaudioUrl string
+		keys, audio, tsaudioUrl, err = common.LoadTSAudio(playlistUrl, gopts, ts, uc.loader, uc.hls)
 		if err != nil {
-			return errors.Wrap(err, "hibiki.dl.ts")
+			return
 		}
 
 		filteredCount := len(keys) + len(audio)
@@ -148,7 +157,7 @@ func (uc *HibikiUsecase) DownloadEpisode(pl model.PrintLine, ep HibikiEpisodeMed
 
 	errImg := <-errcImg
 	if errImg != nil {
-		return errors.Wrap(errImg, "hibiki.dl:")
+		return errImg
 	}
 
 	return nil
