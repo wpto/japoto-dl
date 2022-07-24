@@ -24,6 +24,7 @@ func (ep *OnsenEpisode) Download(loader model.Loader, tasks model.Tasks, pl mode
 	}
 
 	playlistUrl := *ep.StreamingUrl
+	fmt.Println("playlistUrl", playlistUrl)
 
 	// TODO remove pointers from ep
 	if ep.StreamingUrl == nil {

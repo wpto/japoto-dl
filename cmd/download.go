@@ -10,6 +10,7 @@ import (
 	"github.com/pgeowng/japoto-dl/cmd/printline"
 	"github.com/pgeowng/japoto-dl/dl"
 	"github.com/pgeowng/japoto-dl/model"
+	"github.com/pgeowng/japoto-dl/output/archive"
 	"github.com/pgeowng/japoto-dl/provider"
 	"github.com/pgeowng/japoto-dl/tasks"
 	"github.com/pgeowng/japoto-dl/workdir"
@@ -43,7 +44,16 @@ func DownloadCmd() *cobra.Command {
 var ffwg sync.WaitGroup
 var history workdir.History = workdir.NewHistory("history.txt")
 
+const archiveRepoFilename = "archive.sqlite"
+
 func downloadRun(cmd *cobra.Command, args []string) {
+	var archiveRepo archive.Archive
+	var err error
+	archiveRepo, err = archive.NewRepo(archiveRepoFilename)
+	if err != nil {
+		fmt.Println("archive.NewRepo", err)
+		return
+	}
 
 	d := dl.NewGrequests()
 	providers := provider.NewProvidersList()
@@ -104,10 +114,11 @@ func downloadRun(cmd *cobra.Command, args []string) {
 			if description.IsExists() {
 				return pl.Error(errors.New("description already exists"))
 			}
-
 		}
 
-		if history.Check(salt) {
+		if ok, err := archiveRepo.IsLoaded(salt); err != nil {
+			return pl.Error(fmt.Errorf("archiveRepo.IsLoaded: %w", err))
+		} else if ok {
 			return pl.Error(errors.New("already downloaded"))
 		}
 
@@ -148,6 +159,38 @@ func downloadRun(cmd *cobra.Command, args []string) {
 					err = fmt.Errorf("save description file: %s", err)
 				}
 			}
+			description.Basename = salt
+			description.Filename = filename
+
+			description.Provider = ep.Show().Provider()
+			description.Uid = ep.EpIdx()
+
+			description.Date = date.Filename()
+			description.ShowName = ep.Show().ShowId()
+
+			description.ShowTitle = ep.Show().ShowTitle()
+			description.EpisodeTitle = ep.EpTitle()
+
+			description.Artists = artists
+
+			archiveRepo.Create(salt, archive.ArchiveItem{
+				HistoryKey: salt,
+				Description: &archive.ArchiveItemDescription{
+					Date:      date.Filename(),
+					Source:    ep.Show().Provider(),
+					ShowId:    ep.Show().ShowId(),
+					ShowTitle: ep.Show().ShowTitle(),
+					EpTitle:   ep.EpTitle(),
+					Artists:   artists,
+				},
+				Meta: &archive.ArchiveItemMeta{
+					Filename: filename,
+					Duration: nil,
+					Size:     nil,
+				},
+				Chan: nil,
+			})
+
 			if err != nil {
 				pl.Error(errors.Errorf("ffmpeg error: %v", err))
 			} else {

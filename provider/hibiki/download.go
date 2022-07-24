@@ -8,6 +8,17 @@ import (
 	"github.com/pkg/errors"
 )
 
+var defaultHeaders = map[string]string{
+	"X-Requested-With": "XMLHttpRequest",
+}
+
+type HibikiUsecase struct {
+}
+
+func NewHibikiUsecase() (*HibikiUsecase, error) {
+	return &HibikiUsecase{}, nil
+}
+
 func (ep *HibikiEpisodeMedia) Download(loader model.Loader, tasks model.Tasks, pl model.PrintLine) error {
 	pl.SetPrefix(fmt.Sprintf("%s/%s", ep.Show().Provider(), ep.EpId()))
 	pl.SetChunk(0)
@@ -16,12 +27,26 @@ func (ep *HibikiEpisodeMedia) Download(loader model.Loader, tasks model.Tasks, p
 	var checkObj struct {
 		PlaylistUrl string `json:"playlist_url"`
 	}
+	var err error
+	err = loader.
+		Url(fmt.Sprintf("https://vcms-api.hibiki-radio.jp/api/v1/videos/play_check?video_id=%d", ep.Id)).
+		Headers(defaultHeaders).
+		JSON(&checkObj)
+
 	err := loader.JSON("https://vcms-api.hibiki-radio.jp/api/v1/videos/play_check?video_id="+fmt.Sprint(ep.Id), &checkObj, gopts)
 	if err != nil {
 		return errors.Wrap(err, "hibiki.dl.check")
 	}
 
 	playlistUrl := checkObj.PlaylistUrl
+
+	err = loader.
+		Url(playlistUrl).
+		Headers(defaultHeaders).
+		Transform(func(content string) (err error) {
+			return nil
+		}).
+		Save(wd.Permanent("playlist.m3u8"))
 
 	tsaudio, err := common.LoadPlaylist(playlistUrl, gopts, loader, hls)
 	if err != nil {
@@ -40,11 +65,22 @@ func (ep *HibikiEpisodeMedia) Download(loader model.Loader, tasks model.Tasks, p
 				return errors.New("hibiki.dl.image: not found")
 			}
 
+			err := loader.
+				Url(imageUrl).
+				Headers(defaultHeaders).
+				Save(wd.Permanent("image"))
+
 			return common.LoadImage(imageUrl, gopts, loader, hls)
 		}()
 	}(errcImg)
 
 	for _, ts := range tsaudio {
+		err = loader.
+			Url(tsaudio).
+			Headers(defaultHeaders).
+			Transform(func(content []byte) (err error) { return }).
+			Save(wd.Permanent("tsaudio"))
+
 		keys, audio, tsaudioUrl, err := common.LoadTSAudio(playlistUrl, gopts, ts, loader, hls)
 		if err != nil {
 			return errors.Wrap(err, "hibiki.dl.ts")
