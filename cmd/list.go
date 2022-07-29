@@ -30,7 +30,10 @@ func listRun(cmd *cobra.Command, args []string) {
 
 	MapShow(d, providers, status, func(show model.Show) error {
 		fmt.Println(show.PPrint().String())
-		eps := show.GetEpisodes()
+		eps, err := show.GetEpisodes(d)
+		if err != nil {
+			fmt.Printf("GetEpisodes: error=%v\n", err)
+		}
 		for _, ep := range eps {
 			fmt.Println(ep.PPrint().String())
 		}

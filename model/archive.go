@@ -10,7 +10,6 @@ import (
 
 type ArchiveItem struct {
 	ArchiveKey  string                  `json:"key"`
-	ID          string                  `json:"id"`
 	Description *ArchiveItemDescription `json:"desc,omitempty"`
 	Meta        *ArchiveItemMeta        `json:"meta,omitempty"`
 	Chan        *ArchiveItemChan        `json:"chan,omitempty"`
@@ -37,7 +36,7 @@ type ArchiveItemChan struct {
 }
 
 func (l *ArchiveItem) filepath() string {
-	return fmt.Sprintf("./%s.json", l.ID)
+	return fmt.Sprintf("./%s.json", l.ArchiveKey)
 }
 
 func (l *ArchiveItem) IsExists() bool {

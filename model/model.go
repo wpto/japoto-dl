@@ -13,11 +13,10 @@ type Episode interface {
 	EpId() string
 	EpIdx() string // base62
 	EpTitle() string
-	// PlaylistUrl() *string
+	PlaylistURL() *string
 	// ShowId() string
 	// ShowTitle() string
 	IsVideo() bool
-	URL() string
 
 	Show() Show
 
@@ -25,7 +24,7 @@ type Episode interface {
 }
 
 type Show interface {
-	GetEpisodes() []Episode
+	GetEpisodes(loader Loader) ([]Episode, error)
 	Artists() []string
 	ShowId() string
 	ShowTitle() string

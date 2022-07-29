@@ -30,7 +30,7 @@ func (uc *OnsenUsecase) DownloadEpisode(loader types.Loader, hls types.AudioHLS,
 		return
 	}
 
-	playlistURL = *ep.StreamingUrl
+	playlistURL := *ep.StreamingUrl
 
 	// TODO rewrites playlist file in any case. should be like that?
 	tsaudio, err := common.LoadPlaylist(playlistURL, gopts, loader, hls)

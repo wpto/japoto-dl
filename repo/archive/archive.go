@@ -46,22 +46,8 @@ func (r *ArchiveRepo) Migrate(pool *sqlitex.Pool) (err error) {
 	}
 	defer pool.Put(conn)
 
-	// DROP TABLE IF EXISTS entries;
-	// CREATE TABLE IF NOT EXISTS entries(
-	// 	id INTEGER PRIMARY KEY AUTOINCREMENT,
-	// 	name TEXT NOT NULL UNIQUE,
-	// 	key TEXT NOT NULL,
-	// 	rank INTEGER NOT NULL
-	// );
-	query := `DROP TABLE IF EXISTS history;`
-
+	query := `CREATE TABLE IF NOT EXISTS history(key TEXT PRIMARY KEY, status INTEGER, data json);`
 	stmt := conn.Prep(query)
-	if _, err = stmt.Step(); err != nil {
-		return
-	}
-
-	query = `CREATE TABLE IF NOT EXISTS history(key TEXT PRIMARY KEY, status INTEGER, data json);`
-	stmt = conn.Prep(query)
 	defer func() {
 		if err == nil {
 			if err = stmt.Finalize(); err != nil {

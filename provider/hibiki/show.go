@@ -1,8 +1,11 @@
 package hibiki
 
 import (
+	"fmt"
+	"log"
 	"reflect"
 
+	"github.com/pgeowng/japoto-dl/internal/types"
 	"github.com/pgeowng/japoto-dl/model"
 )
 
@@ -37,20 +40,56 @@ func (show *HibikiShow) ShowTitle() string {
 	return show.Name
 }
 
-func (show *HibikiShow) GetEpisodes() []model.Episode {
-	result := []model.Episode{}
-
+func (show *HibikiShow) GetEpisodes(loader model.Loader) (result []model.Episode, err error) {
 	if show.Episode.Video != nil {
+		var url string
+		var err error
+		url, err = loadCheckPlaylistURL(loader, show.Episode.Video.Id)
+		if err != nil {
+			log.Printf("WARN: HibikiShow.GetEpisodes: cant get episode playlist url: %v, accessID=%v\n", err, show.AccessId)
+			show.Episode.Video.URL = nil
+		} else {
+			show.Episode.Video.URL = &url
+		}
+
 		v := reflect.ValueOf(show.Episode.Video).Interface()
 		c := v.(model.Episode)
-		result = append(result, c)
+		if err == nil {
+			result = append(result, c)
+		}
 	}
+
 	if show.Episode.AdditionalVideo != nil {
+		var url string
+		var err error
+		url, err = loadCheckPlaylistURL(loader, show.Episode.AdditionalVideo.Id)
+		if err != nil {
+			log.Printf("WARN: HibikiShow.GetEpisodes: cant get episode playlist url: %v, accessID=%v\n", err, show.AccessId)
+			show.Episode.AdditionalVideo.URL = nil
+		} else {
+			show.Episode.AdditionalVideo.URL = &url
+		}
+
 		v := reflect.ValueOf(show.Episode.AdditionalVideo).Interface()
 		c := v.(model.Episode)
-		result = append(result, c)
+		if err == nil {
+			result = append(result, c)
+		}
 	}
-	return result
+	return result, nil
+}
+
+func loadCheckPlaylistURL(loader types.Loader, id int) (url string, err error) {
+	var checkObj struct {
+		PlaylistURL string `json:"playlist_url"`
+	}
+
+	err = loader.JSON(fmt.Sprintf(playCheckURL, id), &checkObj, gopts)
+	if err != nil {
+		return
+	}
+
+	return checkObj.PlaylistURL, nil
 }
 
 func (show *HibikiShow) canDownload() bool {

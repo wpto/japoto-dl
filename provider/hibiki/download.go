@@ -17,25 +17,13 @@ const (
 type HibikiUsecase struct{}
 
 func (uc *HibikiUsecase) DownloadEpisode(loader types.Loader, hls types.AudioHLS, status types.LoadStatus, ep *HibikiEpisodeMedia) (err error) {
-	// TODO: move outside download function
-	// pl.SetPrefix(fmt.Sprintf("%s/%s", ep.Show().Provider(), ep.EpId()))
-	// pl.SetChunk(0)
-
 	defer func() {
 		if err != nil {
 			err = fmt.Errorf("HibikiUsecase.DownloadEpisode: %w", err)
 		}
 	}()
 
-	var checkObj struct {
-		PlaylistURL string `json:"playlist_url"`
-	}
-	err = loader.JSON(fmt.Sprintf(playCheckURL, ep.Id), &checkObj, gopts)
-	if err != nil {
-		return
-	}
-
-	playlistURL := checkObj.PlaylistURL
+	playlistURL := *(ep.PlaylistURL())
 
 	tsaudio, err := common.LoadPlaylist(playlistURL, gopts, loader, hls)
 	if err != nil {

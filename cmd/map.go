@@ -46,7 +46,11 @@ func FilterShowId(src []model.ShowAccess, filter []string) []model.ShowAccess {
 }
 func MapEpisode(dl model.Loader, providers []provider.Provider, pl model.PrintLine, processEpisode func(ep model.Episode) error) {
 	MapShow(dl, providers, pl, func(show model.Show) error {
-		eps := show.GetEpisodes()
+		eps, err := show.GetEpisodes(dl)
+		if err != nil {
+			fmt.Println("show.GetEpisodes: error: %v", err)
+			return err
+		}
 		for _, ep := range eps {
 			processEpisode(ep)
 		}

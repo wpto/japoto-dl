@@ -76,16 +76,14 @@ type OnsenShow struct {
 	PersonalityGroups []OnsenPersonalityGroup `json:"personality_groups"`
 }
 
-func (show *OnsenShow) GetEpisodes() []model.Episode {
-	result := make([]model.Episode, 0)
-
+func (show *OnsenShow) GetEpisodes(loader model.Loader) (result []model.Episode, err error) {
 	for i := range show.Contents {
 		v := reflect.ValueOf(&show.Contents[i]).Interface()
 		c := v.(model.Episode)
 		result = append(result, c)
 	}
 
-	return result
+	return
 }
 
 func (show *OnsenShow) Artists() []string {
