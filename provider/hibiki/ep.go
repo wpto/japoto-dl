@@ -23,6 +23,7 @@ type HibikiEpisode struct {
 type HibikiEpisodeMedia struct {
 	Id        int `json:"id"`
 	MediaType int `json:"media_type"`
+	URL       *string
 
 	IsAdditional bool
 	epRef        *HibikiEpisode
@@ -89,4 +90,8 @@ func (m *HibikiEpisodeMedia) PPrint() model.PPrintRow {
 
 func (m *HibikiEpisodeMedia) EpIdx() string {
 	return common.EncodeIdx(m.epRef.Id, m.Id)
+}
+
+func (m *HibikiEpisodeMedia) PlaylistURL() *string {
+	return m.URL
 }

@@ -1,4 +1,4 @@
-package printline
+package status
 
 import (
 	"fmt"
@@ -106,6 +106,23 @@ func (pl *PrintLine) printStatus() {
 	)
 
 	pl.Print(str)
+}
+
+func (pl *PrintLine) SetEp(provider, epidx string) {
+	pl.SetPrefix(fmt.Sprintf("%s/%s", provider, epidx))
+	pl.SetChunk(0)
+	pl.printStatus()
+}
+
+func (pl *PrintLine) Inc(step int) {
+	pl.SetChunk(pl.chunk + step)
+	pl.printStatus()
+}
+
+func (pl *PrintLine) Total(total int) {
+	// TODO: total already set
+	pl.SetChunkCount(total)
+	pl.printStatus()
 }
 
 type ErrorPrintLine struct{}

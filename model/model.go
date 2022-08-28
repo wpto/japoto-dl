@@ -9,11 +9,11 @@ type Episode interface {
 	Artists() []string
 	CanDownload() bool
 	Date() Date
-	Download(loader Loader, tasks Tasks, pl PrintLine) error
+	// Download(loader Loader, tasks Tasks, pl PrintLine) error
 	EpId() string
 	EpIdx() string // base62
 	EpTitle() string
-	// PlaylistUrl() *string
+	PlaylistURL() *string
 	// ShowId() string
 	// ShowTitle() string
 	IsVideo() bool
@@ -24,7 +24,7 @@ type Episode interface {
 }
 
 type Show interface {
-	GetEpisodes() []Episode
+	GetEpisodes(loader Loader) ([]Episode, error)
 	Artists() []string
 	ShowId() string
 	ShowTitle() string

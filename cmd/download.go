@@ -7,10 +7,13 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/pgeowng/japoto-dl/cmd/printline"
 	"github.com/pgeowng/japoto-dl/dl"
 	"github.com/pgeowng/japoto-dl/model"
 	"github.com/pgeowng/japoto-dl/provider"
+	"github.com/pgeowng/japoto-dl/provider/hibiki"
+	"github.com/pgeowng/japoto-dl/provider/onsen"
+	"github.com/pgeowng/japoto-dl/repo/archive"
+	"github.com/pgeowng/japoto-dl/repo/status"
 	"github.com/pgeowng/japoto-dl/tasks"
 	"github.com/pgeowng/japoto-dl/workdir"
 	"github.com/pgeowng/japoto-dl/workdir/muxer"
@@ -22,6 +25,14 @@ import (
 var ForceAudio bool
 var OnlyMux bool
 var LoadedJSON bool
+
+const (
+	stageDownload        = true
+	stageMux             = true
+	stageHistoryWrite    = true
+	stageJSONWrite       = false
+	stageOldHistoryWrite = false
+)
 
 func DownloadCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -48,18 +59,36 @@ func downloadRun(cmd *cobra.Command, args []string) {
 	d := dl.NewGrequests()
 	providers := provider.NewProvidersList()
 
-	// pl := &printline.PrintLine{}
-	pl := printline.New(os.Stdout)
+	// status := &printline.PrintLine{}
+	status := status.New(os.Stdout)
 
-	MapEpisode(d, providers, pl, func(ep model.Episode) error {
-		pl.SetPrefix(ep.EpId())
-		pl.Status("loading ep")
+	archiveDB, err := archive.CreateDB("./japoto-archive.db")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	archiveRepo, err := archive.NewRepo()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	err = archiveRepo.Migrate(archiveDB)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	MapEpisode(d, providers, status, func(ep model.Episode) error {
+		status.SetPrefix(ep.EpId())
+		status.Status("loading ep")
 		if !ep.CanDownload() {
 			return errors.New("cant load - skip")
 		}
 
 		if ep.IsVideo() && !ForceAudio {
-			return pl.Error(errors.New("saving video not implemented"))
+			return status.Error(errors.New("saving video not implemented"))
 		}
 
 		date := ep.Date()
@@ -82,33 +111,70 @@ func downloadRun(cmd *cobra.Command, args []string) {
 		salt := fmt.Sprintf("%s-%s--%s-u%s", date.Filename(), ep.Show().ShowId(), ep.Show().Provider(), ep.EpIdx())
 
 		filename := fmt.Sprintf("%s.mp3", salt)
+		playlistURL := ep.PlaylistURL()
+		if playlistURL == nil {
+			return status.Error(fmt.Errorf("PlaylistURL is nil: %w", err))
+		}
 
-		var description LoadedModel
-		if LoadedJSON {
-			description.Basename = salt
-			description.Filename = filename
-
-			description.Provider = ep.Show().Provider()
-			description.Uid = ep.EpIdx()
-
-			description.Date = date.Filename()
-			description.ShowName = ep.Show().ShowId()
-
-			description.ShowTitle = ep.Show().ShowTitle()
-			description.EpisodeTitle = ep.EpTitle()
-
-			description.Artists = artists
-
-			fmt.Println(description)
-
-			if description.IsExists() {
-				return pl.Error(errors.New("description already exists"))
+		/*
+			u, err := url.Parse(*playlistURL)
+			if err != nil {
+				fmt.Println("playlisturl parse error", *playlistURL, err)
+				return err
 			}
 
+				query := u.Query()
+				query.Del("token")
+				u.RawQuery = query.Encode()
+
+				archiveKey := u.String()
+		*/
+		archiveKey := salt
+
+		description := model.ArchiveItem{
+			ArchiveKey: archiveKey,
+
+			Description: &model.ArchiveItemDescription{
+				Date:         date.Filename(),
+				Source:       ep.Show().Provider(),
+				ShowID:       ep.Show().ShowId(),
+				ShowTitle:    ep.Show().ShowTitle(),
+				EpisodeID:    ep.EpIdx(),
+				EpisodeTitle: ep.EpTitle(),
+				Artists:      artists,
+			},
+
+			Meta: &model.ArchiveItemMeta{
+				Filename: filename,
+			},
+		}
+
+		archiveStatus, err := archiveRepo.IsLoaded(archiveDB, archiveKey)
+		if err != nil {
+			return status.Error(fmt.Errorf("check archive repo(key): %w", err))
+		}
+
+		if archiveStatus == archive.Loaded {
+			return status.Error(errors.New("already downloaded"))
 		}
 
 		if history.Check(salt) {
-			return pl.Error(errors.New("already downloaded"))
+			err = archiveRepo.Create(archiveDB, salt, archive.Loaded, model.ArchiveItem{})
+			if err != nil {
+				err = archiveRepo.SetStatus(archiveDB, salt, archive.Loaded)
+				if err != nil {
+					return status.Error(fmt.Errorf("migrate file history error: %w", err))
+				}
+			}
+			return status.Error(errors.New("already downloaded"))
+		}
+		fmt.Println("salt", archiveKey)
+
+		if archiveStatus == archive.NotExists {
+			err = archiveRepo.Create(archiveDB, archiveKey, archive.NotLoaded, description)
+			if err != nil {
+				return status.Error(fmt.Errorf("predownload: %w", err))
+			}
 		}
 
 		destPath := fmt.Sprintf("./%s", filename)
@@ -123,40 +189,70 @@ func downloadRun(cmd *cobra.Command, args []string) {
 			"image":    "image",
 		})
 
+		// statusRepo := status.NewLoadStatus(ep.Show().Provider(), ep.EpId())
+
+		status.SetEp(ep.Show().Provider(), ep.EpIdx())
+
 		t := tasks.NewTasks(wdHLS)
-		if !OnlyMux {
-			pl.AddLoadedCount()
-			err := ep.Download(d, t, pl)
-			pl.AddLoaded()
+		if stageDownload && !OnlyMux {
+			status.AddLoadedCount()
+			var ii interface{} = ep
+			var err error
+			switch v := ii.(type) {
+			case *hibiki.HibikiEpisodeMedia:
+				hibikiUC := hibiki.HibikiUsecase{}
+				err = hibikiUC.DownloadEpisode(d, t.AudioHLS(), status, v)
+			case *onsen.OnsenEpisode:
+				onsenUC := onsen.OnsenUsecase{}
+				err = onsenUC.DownloadEpisode(d, t.AudioHLS(), status, v)
+			default:
+				fmt.Printf("Provider %s download is not implemented\n", ep.Show().Provider())
+			}
+			// err := ep.Download(d, t, status)
+			status.AddLoaded()
 			if err != nil {
-				return pl.Error(errors.Errorf("error - %s\n", err))
+				return status.Error(errors.Errorf("error - %s\n", err))
 			}
 		}
 
 		ffwg.Add(1)
-		pl.AddMuxedCount()
+		status.AddMuxedCount()
 		go func() {
 			var err error
-			if OnlyMux {
-				err = wdHLS.ForceMux()
-			} else {
-				err = wdHLS.Mux()
-			}
-			if err == nil && LoadedJSON {
-				err = description.SaveFile()
+			if stageMux {
+				if OnlyMux {
+					err = wdHLS.ForceMux()
+				} else {
+					err = wdHLS.Mux()
+				}
 				if err != nil {
-					err = fmt.Errorf("save description file: %s", err)
+					status.Error(errors.Errorf("ffmpeg error: %v", err))
+					return
 				}
 			}
-			if err != nil {
-				pl.Error(errors.Errorf("ffmpeg error: %v", err))
-			} else {
-				history.Write(salt)
+			if stageHistoryWrite {
+				if err = archiveRepo.SetStatus(archiveDB, archiveKey, archive.Loaded); err != nil {
+					status.Error(errors.Errorf("archive write: %w", err))
+					return
+				}
+			}
+			if stageJSONWrite {
+				if err == nil && LoadedJSON {
+					err = description.SaveFile()
+					if err != nil {
+						err = fmt.Errorf("save description file: %s", err)
+					}
+				}
+			}
+			if err == nil {
+				if stageOldHistoryWrite {
+					history.Write(salt)
+				}
 				wd1.Clean()
 			}
 
 			ffwg.Done()
-			pl.AddMuxed()
+			status.AddMuxed()
 		}()
 
 		return nil

@@ -6,30 +6,33 @@ import (
 	"github.com/pgeowng/japoto-dl/model"
 	"github.com/pgeowng/japoto-dl/provider/common"
 	"github.com/pkg/errors"
+
+	"github.com/pgeowng/japoto-dl/internal/types"
 )
 
-func (ep *HibikiEpisodeMedia) Download(loader model.Loader, tasks model.Tasks, pl model.PrintLine) error {
-	pl.SetPrefix(fmt.Sprintf("%s/%s", ep.Show().Provider(), ep.EpId()))
-	pl.SetChunk(0)
-	hls := tasks.AudioHLS()
+const (
+	playCheckURL = "https://vcms-api.hibiki-radio.jp/api/v1/videos/play_check?video_id=%d"
+)
 
-	var checkObj struct {
-		PlaylistUrl string `json:"playlist_url"`
-	}
-	err := loader.JSON("https://vcms-api.hibiki-radio.jp/api/v1/videos/play_check?video_id="+fmt.Sprint(ep.Id), &checkObj, gopts)
+type HibikiUsecase struct{}
+
+func (uc *HibikiUsecase) DownloadEpisode(loader types.Loader, hls types.AudioHLS, status types.LoadStatus, ep *HibikiEpisodeMedia) (err error) {
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("HibikiUsecase.DownloadEpisode: %w", err)
+		}
+	}()
+
+	playlistURL := *(ep.PlaylistURL())
+
+	tsaudio, err := common.LoadPlaylist(playlistURL, gopts, loader, hls)
 	if err != nil {
-		return errors.Wrap(err, "hibiki.dl.check")
-	}
-
-	playlistUrl := checkObj.PlaylistUrl
-
-	tsaudio, err := common.LoadPlaylist(playlistUrl, gopts, loader, hls)
-	if err != nil {
-		return errors.Wrap(err, "hibiki.dl.playlist")
+		return
 	}
 
 	if len(tsaudio) > 1 {
-		return errors.New("hibiki.dl.playlist: tsaudio size > 1: not implemented")
+		err = fmt.Errorf("Not implemented: tsaudio size > 1")
+		return
 	}
 
 	errcImg := make(chan error)
@@ -37,7 +40,7 @@ func (ep *HibikiEpisodeMedia) Download(loader model.Loader, tasks model.Tasks, p
 		errc <- func() error {
 			imageUrl := ep.showRef.PcImageUrl
 			if len(imageUrl) == 0 {
-				return errors.New("hibiki.dl.image: not found")
+				return errors.New("ImageURL not found")
 			}
 
 			return common.LoadImage(imageUrl, gopts, loader, hls)
@@ -45,9 +48,12 @@ func (ep *HibikiEpisodeMedia) Download(loader model.Loader, tasks model.Tasks, p
 	}(errcImg)
 
 	for _, ts := range tsaudio {
-		keys, audio, tsaudioUrl, err := common.LoadTSAudio(playlistUrl, gopts, ts, loader, hls)
+		var keys []model.File
+		var audio []model.File
+		var tsaudioUrl string
+		keys, audio, tsaudioUrl, err = common.LoadTSAudio(playlistURL, gopts, ts, loader, hls)
 		if err != nil {
-			return errors.Wrap(err, "hibiki.dl.ts")
+			return
 		}
 
 		filteredCount := len(keys) + len(audio)
@@ -80,7 +86,7 @@ func (ep *HibikiEpisodeMedia) Download(loader model.Loader, tasks model.Tasks, p
 						return
 					}
 
-					pl.AddChunk()
+					status.Inc(1)
 					validateChan <- file
 				}
 			}
@@ -93,7 +99,7 @@ func (ep *HibikiEpisodeMedia) Download(loader model.Loader, tasks model.Tasks, p
 				case <-done:
 					return
 				default:
-					err = tasks.AudioHLS().Validate(*file)
+					err = hls.Validate(*file)
 					if err != nil {
 						validateError <- errors.Wrap(err, "hibiki.dl.validate")
 					}
@@ -106,37 +112,40 @@ func (ep *HibikiEpisodeMedia) Download(loader model.Loader, tasks model.Tasks, p
 		links := []model.File{}
 		links = append(links, keys...)
 		links = append(links, audio...)
-		pl.SetChunkCount(len(links))
+		status.Total(len(links))
+		// pl.SetChunkCount(len(links))
 
 		for idx := range links {
 			select {
 			case loadChan <- &links[idx]:
-			case err := <-loadError:
+			case err = <-loadError:
 				close(done)
-				return errors.Wrap(err, "hibiki.dl")
-			case err := <-validateError:
+				return
+			case err = <-validateError:
 				close(done)
-				return errors.Wrap(err, "hibiki.dl")
+				return
 			}
 		}
 		close(loadChan)
 
 		select {
-		case err := <-loadError:
+		case err = <-loadError:
 			close(done)
-			return errors.Wrap(err, "hibiki.dl")
-		case err := <-validateError:
+			return
+		case err = <-validateError:
 			if err != nil {
 				close(done)
-				return errors.Wrap(err, "hibiki.validate")
+				err = fmt.Errorf("validate: %w", err)
+				return
 			}
 		}
 	}
 
 	errImg := <-errcImg
 	if errImg != nil {
-		return errors.Wrap(errImg, "hibiki.dl:")
+		err = errImg
+		return
 	}
 
-	return nil
+	return
 }

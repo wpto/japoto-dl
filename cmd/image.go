@@ -1,10 +1,10 @@
 package cmd
 
 import (
-	"github.com/pgeowng/japoto-dl/cmd/printline"
 	"github.com/pgeowng/japoto-dl/dl"
 	"github.com/pgeowng/japoto-dl/model"
 	"github.com/pgeowng/japoto-dl/provider"
+	"github.com/pgeowng/japoto-dl/repo/status"
 	"github.com/pgeowng/japoto-dl/workdir/wd"
 	"github.com/spf13/cobra"
 )
@@ -26,10 +26,10 @@ func imageRun(cmd *cobra.Command, args []string) {
 
 	d := dl.NewGrequests()
 	providers := provider.NewProvidersList()
-	pl := &printline.ErrorPrintLine{}
+	status := &status.ErrorPrintLine{}
 	wd1 := wd.NewWd("./", "")
 
-	MapShow(d, providers, pl, func(show model.Show) error {
+	MapShow(d, providers, status, func(show model.Show) error {
 		if err := show.LoadImage(d, wd1); err != nil {
 			return err
 		}

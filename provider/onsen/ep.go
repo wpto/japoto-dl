@@ -132,7 +132,7 @@ func (ep *OnsenEpisode) EpTitle() string {
 	return ep.Title
 }
 
-func (ep *OnsenEpisode) PlaylistUrl() *string {
+func (ep *OnsenEpisode) PlaylistURL() *string {
 	return ep.StreamingUrl
 }
 
