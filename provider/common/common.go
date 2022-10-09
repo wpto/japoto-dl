@@ -56,23 +56,6 @@ func LoadPlaylist(playlistUrl string, gopts *model.LoaderOpts, loader model.Load
 	return
 }
 
-func LoadImage(imageUrl string, gopts *model.LoaderOpts, loader model.Loader, hls model.AudioHLS) error {
-	imageBody, err := loader.Raw(imageUrl, gopts)
-	if err != nil {
-		return errors.Wrap(err, "load image")
-	}
-
-	file := model.NewFile("", "")
-	file.SetBody(imageBody)
-
-	err = hls.Image(file)
-	if err != nil {
-		return errors.Wrap(err, "save image")
-	}
-
-	return nil
-}
-
 func LoadTSAudio(playlistUrl string, gopts *model.LoaderOpts, ts model.File, loader model.Loader, hls model.AudioHLS) (keys []model.File, audio []model.File, tsaudioUrl string, err error) {
 	tsaudioUrl, err = ts.Url(playlistUrl)
 	if err != nil {
@@ -95,23 +78,6 @@ func LoadTSAudio(playlistUrl string, gopts *model.LoaderOpts, ts model.File, loa
 	}
 
 	return
-}
-
-func LoadChunk(tsaudioUrl string, gopts *model.LoaderOpts, file *model.File, loader model.Loader) (err error) {
-	url, err := file.Url(tsaudioUrl)
-	if err != nil {
-		err = errors.Wrap(err, "onsen.dl.file")
-		return
-	}
-
-	body, err := loader.Raw(url, gopts)
-	if err != nil {
-		err = errors.Wrap(err, "onsen.dl.file")
-		return
-	}
-
-	file.SetBody(body)
-	return nil
 }
 
 func FilterChunks(src []model.File, hls model.AudioHLS) []model.File {

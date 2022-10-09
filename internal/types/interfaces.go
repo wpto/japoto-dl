@@ -26,8 +26,6 @@ type (
 	AudioHLS interface {
 		Playlist(body string) (tsaudio []model.File, err error)
 		TSAudio(tsaudio model.File) (keys []model.File, audio []model.File, err error)
-		Validate(file model.File) error
-		Image(file model.File) error
 		CheckAlreadyLoaded(filename string) bool
 	}
 )

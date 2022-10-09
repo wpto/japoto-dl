@@ -2,10 +2,14 @@ package onsen
 
 import (
 	"fmt"
+	"log"
 
+	"github.com/pgeowng/japoto-dl/internal/entity"
 	"github.com/pgeowng/japoto-dl/internal/types"
 	"github.com/pgeowng/japoto-dl/model"
+	"github.com/pgeowng/japoto-dl/pkg/worker"
 	"github.com/pgeowng/japoto-dl/provider/common"
+	"github.com/pgeowng/japoto-dl/workdir"
 	"github.com/pkg/errors"
 )
 
@@ -17,7 +21,7 @@ var gopts *model.LoaderOpts = &model.LoaderOpts{
 
 type OnsenUsecase struct{}
 
-func (uc *OnsenUsecase) DownloadEpisode(loader types.Loader, hls types.AudioHLS, status types.LoadStatus, ep *OnsenEpisode) (err error) {
+func (uc *OnsenUsecase) DownloadEpisode(loader types.Loader, hls types.AudioHLS, status types.LoadStatus, ep *OnsenEpisode, wd workdir.WorkdirHLS) (err error) {
 
 	defer func() {
 		if err != nil {
@@ -44,24 +48,33 @@ func (uc *OnsenUsecase) DownloadEpisode(loader types.Loader, hls types.AudioHLS,
 		return
 	}
 
-	errcImg := make(chan error)
-	go func(errc chan<- error) {
-		errc <- func() error {
-			imageUrl := ep.PosterImageUrl
+	load := worker.NewBoundWorker(6)
 
-			if len(imageUrl) == 0 {
-				imageUrl = ep.showRef.Image.Url
-			}
+	// Image loading
+	{
+		url := ep.PosterImageUrl
+		if url == "" {
+			url = ep.showRef.Image.Url
+		}
 
-			if len(imageUrl) == 0 {
-				return errors.New("onsen.dl: image not found")
-			}
+		if url == "" {
+			return errors.New("onsen.dl: image not found")
+		}
 
-			return common.LoadImage(imageUrl, gopts, loader, hls)
-		}()
+		image := &entity.Entity{
+			Type:    entity.FileEntity,
+			Gopts:   gopts,
+			Loader:  loader,
+			Workdir: wd,
 
-	}(errcImg)
+			URL: ep.PosterImageUrl,
+		}
 
+		load.Input <- image.DownloadImage
+		log.Default().Printf("Download image queued")
+	}
+
+	// Chunk loading
 	for _, ts := range tsaudio {
 		var keys []model.File
 		var audio []model.File
@@ -79,47 +92,6 @@ func (uc *OnsenUsecase) DownloadEpisode(loader types.Loader, hls types.AudioHLS,
 			fmt.Printf("already loaded %d files: continue...\n", count)
 		}
 
-		done := make(chan struct{})
-
-		loadChan := make(chan *model.File, 10)
-		loadError := make(chan error)
-
-		validateChan := make(chan *model.File, 20)
-		validateError := make(chan error)
-
-		go func() {
-			defer close(validateChan)
-			for file := range loadChan {
-				select {
-				case <-done:
-					return
-				default:
-					err := common.LoadChunk(tsaudioUrl, gopts, file, loader)
-					if err != nil {
-						loadError <- err
-						return
-					}
-					status.Inc(1)
-					validateChan <- file
-				}
-			}
-		}()
-
-		go func() {
-			defer close(validateError)
-			for file := range validateChan {
-				select {
-				case <-done:
-					return
-				default:
-					err = hls.Validate(*file)
-					if err != nil {
-						validateError <- errors.Wrap(err, "onsen.dl.validate")
-					}
-				}
-			}
-		}()
-
 		defer fmt.Printf("\n")
 
 		links := []model.File{}
@@ -128,33 +100,39 @@ func (uc *OnsenUsecase) DownloadEpisode(loader types.Loader, hls types.AudioHLS,
 		status.Total(len(links))
 
 		for idx := range links {
-			select {
-			case loadChan <- &links[idx]:
-			case err = <-loadError:
-				close(done)
-				return
-			case err = <-validateError:
-				close(done)
-				return
-			}
-		}
-		close(loadChan)
+			file := &entity.Entity{
+				Type:    entity.FileEntity,
+				Gopts:   gopts,
+				Loader:  loader,
+				Workdir: wd,
 
-		select {
-		case err = <-loadError:
-			close(done)
-			return
-		case err = <-validateError:
-			if err != nil {
-				close(done)
-				err = fmt.Errorf("validate: %w", err)
-				return
+				ModelFile:  &links[idx],
+				TSAudioURL: tsaudioUrl,
+				Filename:   links[idx].Name(),
+			}
+
+			do := func() (err error) {
+				err = entity.DownloadFile(file)
+				if err != nil {
+					return fmt.Errorf("Load worker: %w", err)
+				}
+
+				status.Inc(1)
+				return nil
+			}
+
+			select {
+			case load.Input <- do:
+			case <-load.Done():
+				break
 			}
 		}
 	}
 
-	errImg := <-errcImg
-	if errImg != nil {
+	load.Close()
+	load.Wait()
+	if load.Err() != nil {
+		err = load.Err()
 		return
 	}
 

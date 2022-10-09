@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/pgeowng/japoto-dl/dl"
 	"github.com/pgeowng/japoto-dl/model"
@@ -25,6 +26,7 @@ import (
 var ForceAudio bool
 var OnlyMux bool
 var LoadedJSON bool
+var BeforeDateStr string
 
 const (
 	stageDownload        = true
@@ -47,6 +49,7 @@ func DownloadCmd() *cobra.Command {
 	cmd.Flags().StringSliceVarP(&FilterProviderList, "provider-only", "p", []string{}, "Shows only selected providers")
 	cmd.Flags().StringSliceVarP(&FilterShowIdList, "show-only", "s", []string{}, "Shows only selected shows")
 	cmd.Flags().BoolVarP(&LoadedJSON, "export-json", "j", true, "On save exports json about loaded show")
+	cmd.Flags().StringVar(&BeforeDateStr, "before-date", "", "Load only before specific date (excluded)")
 
 	return cmd
 }
@@ -55,6 +58,21 @@ var ffwg sync.WaitGroup
 var history workdir.History = workdir.NewHistory("history.txt")
 
 func downloadRun(cmd *cobra.Command, args []string) {
+
+	BeforeDateCallback := func(date time.Time) bool {
+		return true
+	}
+
+	if BeforeDateStr != "" {
+		beforeDate, err := time.Parse("2006-01-02", BeforeDateStr)
+		if err != nil {
+			fmt.Printf("before-date parse error: %v", err)
+			return
+		}
+		BeforeDateCallback = func(date time.Time) bool {
+			return beforeDate.After(date)
+		}
+	}
 
 	d := dl.NewGrequests()
 	providers := provider.NewProvidersList()
@@ -158,6 +176,10 @@ func downloadRun(cmd *cobra.Command, args []string) {
 			return status.Error(errors.New("already downloaded"))
 		}
 
+		if !BeforeDateCallback(date.Time()) {
+			return status.Error(fmt.Errorf("skip before date: %s", date.String()))
+		}
+
 		if history.Check(salt) {
 			err = archiveRepo.Create(archiveDB, salt, archive.Loaded, model.ArchiveItem{})
 			if err != nil {
@@ -201,10 +223,10 @@ func downloadRun(cmd *cobra.Command, args []string) {
 			switch v := ii.(type) {
 			case *hibiki.HibikiEpisodeMedia:
 				hibikiUC := hibiki.HibikiUsecase{}
-				err = hibikiUC.DownloadEpisode(d, t.AudioHLS(), status, v)
+				err = hibikiUC.DownloadEpisode(d, t.AudioHLS(), status, v, wdHLS)
 			case *onsen.OnsenEpisode:
 				onsenUC := onsen.OnsenUsecase{}
-				err = onsenUC.DownloadEpisode(d, t.AudioHLS(), status, v)
+				err = onsenUC.DownloadEpisode(d, t.AudioHLS(), status, v, wdHLS)
 			default:
 				fmt.Printf("Provider %s download is not implemented\n", ep.Show().Provider())
 			}

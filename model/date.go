@@ -3,6 +3,7 @@ package model
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 )
@@ -60,4 +61,8 @@ func intStr(i int) string {
 
 func (d *Date) IsGood() bool {
 	return d.Year > 0 && d.Month > 0 && d.Day > 0
+}
+
+func (d *Date) Time() time.Time {
+	return time.Date(d.Year, time.Month(d.Month), d.Day, 0, 0, 0, 0, time.UTC)
 }
