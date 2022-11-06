@@ -1,0 +1,22 @@
+<!doctype>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c&display=swap" rel="stylesheet">
+<link href="{{ .PublicURL }}/css/main.css" rel="stylesheet"><link rel="icon" type="image/png" href="{{ .PublicURL }}/favicon.png">
+<title>{{template "title" .}}</title>
+</head>
+<body>
+<time class="update-time">{{.CreateTime}}</time>
+<h1 class="title">
+<a class="title__link" href="{{ .PublicURL }}/index.html">
+<img class="title__logo" src="{{.PublicURL}}/icons/logo_96.png" alt="logo">
+japoto
+</a>・<a class="title__link" href="{{.PublicURL}}/hibiki.html">hibiki</a>・<a class="title__link" href="{{.PublicURL}}/onsen.html">onsen</a>
+</h1>
+<main>{{template "content" .}}</main>
+</body>
+</html>

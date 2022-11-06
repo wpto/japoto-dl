@@ -1,0 +1,18 @@
+{{ define "title" }}japoto{{ end }}
+{{ define "content" }}
+{{- $PublicURL := .PublicURL }}
+<div class="kiosk">
+{{ range $provider, $show := .Recent -}}
+<h2 class="kiosk__title">{{ $provider }}</h2>
+<ul class="kiosk__container">
+{{ range $ep := $show -}}
+<li class="show-card">
+<a class="show-card__container" href="{{$PublicURL}}/{{$provider}}/{{$ep.ShowId}}.html">
+<img class="show-card__img" src="{{ $PublicURL }}/images/{{$provider}}/{{ $ep.ShowId }}.jpg">
+<h3 class="pin pin--bl">{{ $ep.ShowId }}</h3>
+<h3 class="pin pin--tr">{{ $ep.Date }}</h3>
+</a>
+</li>
+{{ end }}</ul>
+{{ end }}</div>
+{{ end }}

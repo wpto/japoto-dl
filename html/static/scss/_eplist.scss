@@ -1,0 +1,39 @@
+/* ep-list */
+.ep-list {
+  max-width: 900px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ep {
+  padding: 8px;
+
+  background-color: #e8d4ff;
+  &:nth-child(2n) {
+    background-color: #f0e0ff;
+  }
+
+  &__row {
+    display: flex;
+    min-height: 24px;
+
+    &--meta > a {
+      flex: 1 0 0;
+    }
+
+    &--small {
+      font-size: 12px;
+      min-height: 19px;
+    }
+
+    &--right :first-child {
+      flex: 1 0 0;
+      text-align: right;
+    }
+  }
+
+  &__meta:not(:last-child) {
+    margin-right: 4px;
+  }
+}

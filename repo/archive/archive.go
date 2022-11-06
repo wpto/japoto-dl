@@ -171,3 +171,99 @@ func (r *ArchiveRepo) Create(pool *sqlitex.Pool, key string, status ArchiveEntry
 
 	return
 }
+
+var ErrNoItem = errors.New("no item found")
+
+func (r *ArchiveRepo) GetArchiveEntry(pool *sqlitex.Pool, key string) (item model.ArchiveItem, err error) {
+
+	conn := pool.Get(context.TODO())
+	if err != nil {
+		err = fmt.Errorf("ArchiveRepo.GetArchiveEntry: couldn't get connection for pool: %w", err)
+		return
+	}
+	defer pool.Put(conn)
+
+	query := `SELECT data FROM history WHERE key = $key;`
+	stmt := conn.Prep(query)
+	defer func() {
+		if err == nil {
+			if err = stmt.Finalize(); err != nil {
+				err = fmt.Errorf("ArchiveRepo.GetArchiveEntry: Finalize: %w", err)
+				return
+			}
+		}
+	}()
+
+	stmt.SetText("$key", key)
+
+	hasRow, err := stmt.Step()
+	if err != nil {
+		err = fmt.Errorf("ArchiveRepo.GetArchiveEntry: Step: %w", err)
+		return
+	}
+
+	if !hasRow {
+		err = ErrNoItem
+		return
+	}
+
+	itemBody := stmt.GetText("data")
+
+	err = json.Unmarshal([]byte(itemBody), &item)
+	if err != nil {
+		err = fmt.Errorf("ArchiveRepo.GetArchiveEntry: can't unmarshal: %w", err)
+		return
+	}
+
+	return
+}
+
+func (r *ArchiveRepo) GetArchiveEntries(pool *sqlitex.Pool) (items []model.ArchiveItem, err error) {
+
+	conn := pool.Get(context.TODO())
+	if err != nil {
+		err = fmt.Errorf("ArchiveRepo.GetArchiveEntry: couldn't get connection for pool: %w", err)
+		return
+	}
+	defer pool.Put(conn)
+
+	query := `SELECT data FROM history order by key`
+	stmt := conn.Prep(query)
+	defer func() {
+		if err == nil {
+			if err = stmt.Finalize(); err != nil {
+				err = fmt.Errorf("ArchiveRepo.GetArchiveEntry: Finalize: %w", err)
+				return
+			}
+		}
+	}()
+
+	for {
+
+		var hasRow bool
+
+		hasRow, err = stmt.Step()
+		if err != nil {
+			err = fmt.Errorf("ArchiveRepo.GetArchiveEntry: Step: %w", err)
+			return
+		}
+
+		if !hasRow {
+			if len(items) == 0 {
+				err = ErrNoItem
+			}
+			return
+		}
+
+		var item model.ArchiveItem
+		itemBody := stmt.GetText("data")
+
+		err = json.Unmarshal([]byte(itemBody), &item)
+		if err != nil {
+			err = fmt.Errorf("ArchiveRepo.GetArchiveEntry: can't unmarshal: %w", err)
+			return
+		}
+
+		items = append(items, item)
+	}
+}
