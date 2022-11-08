@@ -10,5 +10,6 @@ func main() {
 	root.AddCommand(cmd.ListCmd())
 	root.AddCommand(cmd.DownloadCmd())
 	root.AddCommand(cmd.ImageCmd())
+	root.AddCommand(cmd.ShowsCmd())
 	root.Execute()
 }
