@@ -1,6 +1,6 @@
 package types
 
-import "github.com/pgeowng/japoto-dl/model"
+import "github.com/pgeowng/japoto-dl/internal/model"
 
 type (
 	LoadStatus interface {

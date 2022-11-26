@@ -8,17 +8,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pgeowng/japoto-dl/dl"
-	"github.com/pgeowng/japoto-dl/model"
-	"github.com/pgeowng/japoto-dl/provider"
-	"github.com/pgeowng/japoto-dl/provider/hibiki"
-	"github.com/pgeowng/japoto-dl/provider/onsen"
-	"github.com/pgeowng/japoto-dl/repo/archive"
-	"github.com/pgeowng/japoto-dl/repo/status"
-	"github.com/pgeowng/japoto-dl/tasks"
-	"github.com/pgeowng/japoto-dl/workdir"
-	"github.com/pgeowng/japoto-dl/workdir/muxer"
-	"github.com/pgeowng/japoto-dl/workdir/wd"
+	"github.com/pgeowng/japoto-dl/internal/model"
+	"github.com/pgeowng/japoto-dl/internal/provider/hibiki"
+	"github.com/pgeowng/japoto-dl/internal/provider/onsen"
+	"github.com/pgeowng/japoto-dl/internal/repo/archive"
+	"github.com/pgeowng/japoto-dl/internal/repo/dl"
+	"github.com/pgeowng/japoto-dl/internal/repo/status"
+	"github.com/pgeowng/japoto-dl/internal/repo/wd"
+	"github.com/pgeowng/japoto-dl/internal/tasks"
+	"github.com/pgeowng/japoto-dl/internal/usecase"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -75,7 +73,10 @@ func downloadRun(cmd *cobra.Command, args []string) {
 	}
 
 	d := dl.NewGrequests()
-	providers := provider.NewProvidersList()
+	providers := []usecase.Provider{
+		onsen.NewOnsen(),
+		hibiki.NewHibiki(),
+	}
 
 	// status := &printline.PrintLine{}
 	status := status.New(os.Stdout)

@@ -1,11 +1,13 @@
 package cmd
 
 import (
-	"github.com/pgeowng/japoto-dl/dl"
-	"github.com/pgeowng/japoto-dl/model"
-	"github.com/pgeowng/japoto-dl/provider"
-	"github.com/pgeowng/japoto-dl/repo/status"
-	"github.com/pgeowng/japoto-dl/workdir/wd"
+	"github.com/pgeowng/japoto-dl/internal/model"
+	"github.com/pgeowng/japoto-dl/internal/provider/hibiki"
+	"github.com/pgeowng/japoto-dl/internal/provider/onsen"
+	"github.com/pgeowng/japoto-dl/internal/repo/dl"
+	"github.com/pgeowng/japoto-dl/internal/repo/status"
+	"github.com/pgeowng/japoto-dl/internal/repo/wd"
+	"github.com/pgeowng/japoto-dl/internal/usecase"
 	"github.com/spf13/cobra"
 )
 
@@ -25,7 +27,10 @@ func ImageCmd() *cobra.Command {
 func imageRun(cmd *cobra.Command, args []string) {
 
 	d := dl.NewGrequests()
-	providers := provider.NewProvidersList()
+	providers := []usecase.Provider{
+		onsen.NewOnsen(),
+		hibiki.NewHibiki(),
+	}
 	status := &status.ErrorPrintLine{}
 	wd1 := wd.NewWd("./", "")
 

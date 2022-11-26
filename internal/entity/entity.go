@@ -1,9 +1,6 @@
 package entity
 
-import (
-	"github.com/pgeowng/japoto-dl/model"
-	"github.com/pgeowng/japoto-dl/workdir"
-)
+import "github.com/pgeowng/japoto-dl/internal/model"
 
 type EntityType int
 
@@ -16,9 +13,9 @@ const (
 type Entity struct {
 	Type EntityType
 
-	Gopts   *model.LoaderOpts
-	Loader  model.Loader
-	Workdir workdir.WorkdirHLS
+	// Gopts   *model.LoaderOpts
+	// Loader  model.Loader
+	// Workdir workdir.WorkdirHLS
 
 	ModelFile  *model.File
 	TSAudioURL string
