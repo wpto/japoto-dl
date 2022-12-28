@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 
 	"crawshaw.io/sqlite"
 	"crawshaw.io/sqlite/sqlitex"
@@ -195,66 +194,66 @@ func (r *ArchiveRepo) Create(pool *sqlitex.Pool, key string, status ArchiveEntry
 	return
 }
 
-func (r *ArchiveRepo) createNewItem(pool *sqlitex.Pool, key string, status ArchiveEntryStatus, archiveItem model.ArchiveItem) (err error) {
-	conn := pool.Get(context.TODO())
-	if conn == nil {
-		return fmt.Errorf("ArchiveRepo.Create: couldn't get connection for pool")
-	}
-	defer pool.Put(conn)
+// func (r *ArchiveRepo) createNewItem(pool *sqlitex.Pool, key string, status ArchiveEntryStatus, archiveItem model.ArchiveItem) (err error) {
+// 	conn := pool.Get(context.TODO())
+// 	if conn == nil {
+// 		return fmt.Errorf("ArchiveRepo.Create: couldn't get connection for pool")
+// 	}
+// 	defer pool.Put(conn)
 
-	query := "insert into history_v2(archive_key, date, source, show_id, show_title, ep_id, ep_title, artists, filename, duration, size, msg_id) values ($archive_key, $date, $source, $show_id, $show_title, $ep_id, $ep_title, $artists, $filename, $duration, $size, $msg_id);"
+// 	query := "insert into history_v2(archive_key, date, source, show_id, show_title, ep_id, ep_title, artists, filename, duration, size, msg_id) values ($archive_key, $date, $source, $show_id, $show_title, $ep_id, $ep_title, $artists, $filename, $duration, $size, $msg_id);"
 
-	stmt := conn.Prep(query)
-	defer func() {
-		if err == nil {
-			if err = stmt.Finalize(); err != nil {
-				err = fmt.Errorf("ArchiveRepo.Create: Finalize: %w", err)
-				return
-			}
-		}
-	}()
+// 	stmt := conn.Prep(query)
+// 	defer func() {
+// 		if err == nil {
+// 			if err = stmt.Finalize(); err != nil {
+// 				err = fmt.Errorf("ArchiveRepo.Create: Finalize: %w", err)
+// 				return
+// 			}
+// 		}
+// 	}()
 
-	stmt.SetText("$key", key)
-	stmt.SetInt64("$status", int64(status))
-	stmt.SetText("$data", string(bytes))
-	if _, err = stmt.Step(); err != nil {
-		return
-	}
+// 	stmt.SetText("$key", key)
+// 	stmt.SetInt64("$status", int64(status))
+// 	stmt.SetText("$data", string(bytes))
+// 	if _, err = stmt.Step(); err != nil {
+// 		return
+// 	}
 
-	return
-}
+// 	return
+// }
 
-func (a *ArchiveRepo) CreateEpisode(pool *sqlitex.Pool, key string, ep model.ArchiveEpisode) (err error) {
-	conn := pool.Get(context.TODO())
-	if conn == nil {
-		return fmt.Errorf("ArchiveRepo.CreateEpisode: couldn't get connection for pool")
-	}
-	defer pool.Put(conn)
+// func (a *ArchiveRepo) CreateEpisode(pool *sqlitex.Pool, key string, ep model.ArchiveEpisode) (err error) {
+// 	conn := pool.Get(context.TODO())
+// 	if conn == nil {
+// 		return fmt.Errorf("ArchiveRepo.CreateEpisode: couldn't get connection for pool")
+// 	}
+// 	defer pool.Put(conn)
 
-	query := "insert into episodes(key, date, source, show_id, ep_id, ep_title, artists) values "
-	query += "($key, $date, $source, $show_id, $ep_id, $ep_title, $artists);"
+// 	query := "insert into episodes(key, date, source, show_id, ep_id, ep_title, artists) values "
+// 	query += "($key, $date, $source, $show_id, $ep_id, $ep_title, $artists);"
 
-	stmt := conn.Prep(query)
-	defer func() {
-		if err == nil {
-			if err = stmt.Finalize(); err != nil {
-				err = fmt.Errorf("ArchiveRepo.Create: Finalize: %w", err)
-				return
-			}
-		}
-	}()
+// 	stmt := conn.Prep(query)
+// 	defer func() {
+// 		if err == nil {
+// 			if err = stmt.Finalize(); err != nil {
+// 				err = fmt.Errorf("ArchiveRepo.Create: Finalize: %w", err)
+// 				return
+// 			}
+// 		}
+// 	}()
 
-	stmt.SetText("$key", key)
-	stmt.SetText("$date", ep.Date)
-	stmt.SetText("$source", ep.Source)
-	stmt.SetText("$show_id", ep.ShowID)
-	stmt.SetText("$ep_id", ep.EpID)
-	stmt.SetText("$ep_title", ep.EpTitle)
-	stmt.SetText("$artists", strings.Join(ep.Artists, ";"))
+// 	stmt.SetText("$key", key)
+// 	stmt.SetText("$date", ep.Date)
+// 	stmt.SetText("$source", ep.Source)
+// 	stmt.SetText("$show_id", ep.ShowID)
+// 	stmt.SetText("$ep_id", ep.EpID)
+// 	stmt.SetText("$ep_title", ep.EpTitle)
+// 	stmt.SetText("$artists", strings.Join(ep.Artists, ";"))
 
-	if _, err = stmt.Step(); err != nil {
-		return
-	}
+// 	if _, err = stmt.Step(); err != nil {
+// 		return
+// 	}
 
-	return
-}
+// 	return
+// }
