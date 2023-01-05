@@ -8,17 +8,17 @@ import (
 	"github.com/pkg/errors"
 )
 
-type dlGrequests struct {
+type Grequests struct {
 	session *grequests.Session
 }
 
-func NewGrequests() *dlGrequests {
+func NewGrequests() *Grequests {
 	session := grequests.NewSession(nil)
-	return &dlGrequests{session}
+	return &Grequests{session}
 }
 
 // options should me separated from code...
-func (dl *dlGrequests) Text(url string, opts *model.LoaderOpts) (*string, error) {
+func (dl *Grequests) Text(url string, opts *model.LoaderOpts) (*string, error) {
 	res, err := dl.retryGet(url, opts)
 	if err != nil {
 		return nil, errors.Wrap(err, "get")
@@ -30,7 +30,7 @@ func (dl *dlGrequests) Text(url string, opts *model.LoaderOpts) (*string, error)
 	return &str, nil
 }
 
-func (dl *dlGrequests) JSON(url string, dest interface{}, opts *model.LoaderOpts) error {
+func (dl *Grequests) JSON(url string, dest interface{}, opts *model.LoaderOpts) error {
 	res, err := dl.retryGet(url, opts)
 	if err != nil {
 		return errors.Wrap(err, "get")
@@ -48,7 +48,7 @@ func (dl *dlGrequests) JSON(url string, dest interface{}, opts *model.LoaderOpts
 	return nil
 }
 
-func (dl *dlGrequests) Raw(url string, opts *model.LoaderOpts) ([]byte, error) {
+func (dl *Grequests) Raw(url string, opts *model.LoaderOpts) ([]byte, error) {
 	res, err := dl.retryGet(url, opts)
 	if err != nil {
 		return nil, errors.Wrap(err, "get")
@@ -61,7 +61,7 @@ func (dl *dlGrequests) Raw(url string, opts *model.LoaderOpts) ([]byte, error) {
 	return res.Bytes(), nil
 }
 
-func (dl *dlGrequests) retryGet(url string, opts *model.LoaderOpts) (*grequests.Response, error) {
+func (dl *Grequests) retryGet(url string, opts *model.LoaderOpts) (*grequests.Response, error) {
 	gopts := &grequests.RequestOptions{}
 	times := model.LoaderOptsDefault.Timeouts
 
