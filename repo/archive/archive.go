@@ -16,14 +16,19 @@ var (
 	ErrDuplicate = errors.New("record already exists")
 )
 
+type Interface interface {
+	Migrate() error
+	IsLoaded(key string) (status ArchiveEntryStatus, err error)
+	Create(key string, status ArchiveEntryStatus, archiveItem model.ArchiveItem) (err error)
+	SetStatus(key string, status ArchiveEntryStatus) (err error)
+}
+
 type Archive interface {
 	Migrate(archive *sqlitex.Pool) error
 	IsLoaded(archive *sqlitex.Pool, key string) (ok bool, err error)
 	SetLoaded(archive *sqlitex.Pool, key string, status bool) error
 	Create(archive *sqlitex.Pool, key string, status bool, archiveItem model.ArchiveItem) error
 }
-
-type ArchiveRepo struct{}
 
 func CreateDB(filename string) (pool *sqlitex.Pool, err error) {
 	pool, err = sqlitex.Open(filename, sqlite.SQLITE_OPEN_CREATE|sqlite.SQLITE_OPEN_READWRITE, 10)
@@ -35,16 +40,22 @@ func CreateDB(filename string) (pool *sqlitex.Pool, err error) {
 	return
 }
 
-func NewRepo() (archive *ArchiveRepo, err error) {
-	return &ArchiveRepo{}, nil
+type ArchiveRepo struct {
+	pool *sqlitex.Pool
 }
 
-func (r *ArchiveRepo) Migrate(pool *sqlitex.Pool) (err error) {
-	conn := pool.Get(context.TODO())
+func NewRepo(pool *sqlitex.Pool) (archive *ArchiveRepo, err error) {
+	return &ArchiveRepo{
+		pool: pool,
+	}, nil
+}
+
+func (r *ArchiveRepo) Migrate() (err error) {
+	conn := r.pool.Get(context.TODO())
 	if conn == nil {
 		return
 	}
-	defer pool.Put(conn)
+	defer r.pool.Put(conn)
 
 	query := `CREATE TABLE IF NOT EXISTS history(key TEXT PRIMARY KEY, status INTEGER, data json);`
 	stmt := conn.Prep(query)
@@ -76,12 +87,12 @@ const (
 	Loaded
 )
 
-func (r *ArchiveRepo) IsLoaded(pool *sqlitex.Pool, key string) (status ArchiveEntryStatus, err error) {
-	conn := pool.Get(context.TODO())
+func (r *ArchiveRepo) IsLoaded(key string) (status ArchiveEntryStatus, err error) {
+	conn := r.pool.Get(context.TODO())
 	if conn == nil {
 		return
 	}
-	defer pool.Put(conn)
+	defer r.pool.Put(conn)
 
 	query := `SELECT status FROM history WHERE key = $key;`
 
@@ -111,12 +122,12 @@ func (r *ArchiveRepo) IsLoaded(pool *sqlitex.Pool, key string) (status ArchiveEn
 	return
 }
 
-func (r *ArchiveRepo) SetStatus(pool *sqlitex.Pool, key string, status ArchiveEntryStatus) (err error) {
-	conn := pool.Get(context.TODO())
+func (r *ArchiveRepo) SetStatus(key string, status ArchiveEntryStatus) (err error) {
+	conn := r.pool.Get(context.TODO())
 	if conn == nil {
 		return
 	}
-	defer pool.Put(conn)
+	defer r.pool.Put(conn)
 
 	query := `INSERT INTO history(key, status, data) VALUES ($key, $status, '{}') ON CONFLICT (key) DO UPDATE SET status = $status;`
 	stmt := conn.Prep(query)
@@ -138,17 +149,17 @@ func (r *ArchiveRepo) SetStatus(pool *sqlitex.Pool, key string, status ArchiveEn
 	return
 }
 
-func (r *ArchiveRepo) Create(pool *sqlitex.Pool, key string, status ArchiveEntryStatus, archiveItem model.ArchiveItem) (err error) {
+func (r *ArchiveRepo) Create(key string, status ArchiveEntryStatus, archiveItem model.ArchiveItem) (err error) {
 	bytes, err := json.Marshal(archiveItem)
 	if err != nil {
 		return fmt.Errorf("ArchiveRepo.Create: can't marshal archiveItem: %w", err)
 	}
 
-	conn := pool.Get(context.TODO())
+	conn := r.pool.Get(context.TODO())
 	if conn == nil {
 		return fmt.Errorf("ArchiveRepo.Create: couldn't get connection for pool")
 	}
-	defer pool.Put(conn)
+	defer r.pool.Put(conn)
 
 	query := "INSERT INTO history(key, status, data) values($key, $status, $data);"
 	stmt := conn.Prep(query)

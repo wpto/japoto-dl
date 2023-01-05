@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"crawshaw.io/sqlite/sqlitex"
 	"github.com/pgeowng/japoto-dl/dl"
 	"github.com/pgeowng/japoto-dl/model"
 	"github.com/pgeowng/japoto-dl/provider"
@@ -81,19 +80,19 @@ func downloadRun(cmd *cobra.Command, args []string) {
 	// status := &printline.PrintLine{}
 	status := status.New(os.Stdout)
 
-	archiveDB, err := archive.CreateDB("./japoto-archive.db")
+	db, err := archive.CreateDB("./japoto-archive.db")
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	archiveRepo, err := archive.NewRepo()
+	archiveRepo, err := archive.NewRepo(db)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	err = archiveRepo.Migrate(archiveDB)
+	err = archiveRepo.Migrate()
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -103,7 +102,6 @@ func downloadRun(cmd *cobra.Command, args []string) {
 		Status:             status,
 		BeforeDateCallback: BeforeDateCallback,
 		ArchiveRepo:        archiveRepo,
-		ArchiveDB:          archiveDB,
 		Loader:             d,
 	}
 
@@ -128,8 +126,7 @@ func downloadRun(cmd *cobra.Command, args []string) {
 type EpisodeLoader struct {
 	Status             *status.PrintLine
 	BeforeDateCallback func(date time.Time) bool
-	ArchiveRepo        *archive.ArchiveRepo
-	ArchiveDB          *sqlitex.Pool
+	ArchiveRepo        archive.Interface
 	Loader             *dl.Grequests
 }
 
@@ -137,7 +134,6 @@ func (l *EpisodeLoader) LoadEpisode(ep model.Episode) error {
 	status := l.Status
 	BeforeDateCallback := l.BeforeDateCallback
 	archiveRepo := l.ArchiveRepo
-	archiveDB := l.ArchiveDB
 	d := l.Loader
 
 	status.SetPrefix(ep.EpId())
@@ -208,7 +204,7 @@ func (l *EpisodeLoader) LoadEpisode(ep model.Episode) error {
 		},
 	}
 
-	archiveStatus, err := archiveRepo.IsLoaded(archiveDB, archiveKey)
+	archiveStatus, err := archiveRepo.IsLoaded(archiveKey)
 	if err != nil {
 		return status.Error(fmt.Errorf("check archive repo(key): %w", err))
 	}
@@ -222,9 +218,9 @@ func (l *EpisodeLoader) LoadEpisode(ep model.Episode) error {
 	}
 
 	if history.Check(salt) {
-		err = archiveRepo.Create(archiveDB, salt, archive.Loaded, model.ArchiveItem{})
+		err = archiveRepo.Create(salt, archive.Loaded, model.ArchiveItem{})
 		if err != nil {
-			err = archiveRepo.SetStatus(archiveDB, salt, archive.Loaded)
+			err = archiveRepo.SetStatus(salt, archive.Loaded)
 			if err != nil {
 				return status.Error(fmt.Errorf("migrate file history error: %w", err))
 			}
@@ -234,7 +230,7 @@ func (l *EpisodeLoader) LoadEpisode(ep model.Episode) error {
 	fmt.Println("salt", archiveKey)
 
 	if archiveStatus == archive.NotExists {
-		err = archiveRepo.Create(archiveDB, archiveKey, archive.NotLoaded, description)
+		err = archiveRepo.Create(archiveKey, archive.NotLoaded, description)
 		if err != nil {
 			return status.Error(fmt.Errorf("predownload: %w", err))
 		}
@@ -294,7 +290,7 @@ func (l *EpisodeLoader) LoadEpisode(ep model.Episode) error {
 			}
 		}
 		if stageHistoryWrite {
-			if err = archiveRepo.SetStatus(archiveDB, archiveKey, archive.Loaded); err != nil {
+			if err = archiveRepo.SetStatus(archiveKey, archive.Loaded); err != nil {
 				status.Error(errors.Errorf("archive write: %w", err))
 				return
 			}
