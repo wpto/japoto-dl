@@ -1,4 +1,4 @@
-package hibiki
+package provider
 
 import (
 	"fmt"
@@ -84,7 +84,7 @@ func loadCheckPlaylistURL(loader types.Loader, id int) (url string, err error) {
 		PlaylistURL string `json:"playlist_url"`
 	}
 
-	err = loader.JSON(fmt.Sprintf(playCheckURL, id), &checkObj, gopts)
+	err = loader.JSON(fmt.Sprintf(playCheckURL, id), &checkObj, hibikiGopts)
 	if err != nil {
 		return
 	}

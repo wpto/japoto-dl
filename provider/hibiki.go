@@ -1,10 +1,10 @@
-package hibiki
+package provider
 
 import "github.com/pgeowng/japoto-dl/model"
 
 type Hibiki struct{}
 
-var gopts *model.LoaderOpts = &model.LoaderOpts{
+var hibikiGopts *model.LoaderOpts = &model.LoaderOpts{
 	Headers: map[string]string{
 		"X-Requested-With": "XMLHttpRequest",
 	},

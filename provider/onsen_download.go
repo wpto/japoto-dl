@@ -1,4 +1,4 @@
-package onsen
+package provider
 
 import (
 	"fmt"
@@ -8,12 +8,11 @@ import (
 	"github.com/pgeowng/japoto-dl/internal/types"
 	"github.com/pgeowng/japoto-dl/model"
 	"github.com/pgeowng/japoto-dl/pkg/worker"
-	"github.com/pgeowng/japoto-dl/provider/common"
 	"github.com/pgeowng/japoto-dl/workdir"
 	"github.com/pkg/errors"
 )
 
-var gopts *model.LoaderOpts = &model.LoaderOpts{
+var onsenGopts *model.LoaderOpts = &model.LoaderOpts{
 	Headers: map[string]string{
 		"Referer": "https://www.onsen.ag/",
 	},
@@ -37,7 +36,7 @@ func (uc *OnsenUsecase) DownloadEpisode(loader types.Loader, hls types.AudioHLS,
 	playlistURL := *ep.StreamingUrl
 
 	// TODO rewrites playlist file in any case. should be like that?
-	tsaudio, err := common.LoadPlaylist(playlistURL, gopts, loader, hls)
+	tsaudio, err := LoadPlaylist(playlistURL, onsenGopts, loader, hls)
 	if err != nil {
 		err = errors.Wrap(err, "onsen")
 		return
@@ -63,7 +62,7 @@ func (uc *OnsenUsecase) DownloadEpisode(loader types.Loader, hls types.AudioHLS,
 
 		image := &entity.Entity{
 			Type:    entity.FileEntity,
-			Gopts:   gopts,
+			Gopts:   onsenGopts,
 			Loader:  loader,
 			Workdir: wd,
 
@@ -79,15 +78,15 @@ func (uc *OnsenUsecase) DownloadEpisode(loader types.Loader, hls types.AudioHLS,
 		var keys []model.File
 		var audio []model.File
 		var tsaudioUrl string
-		keys, audio, tsaudioUrl, err = common.LoadTSAudio(playlistURL, gopts, ts, loader, hls)
+		keys, audio, tsaudioUrl, err = LoadTSAudio(playlistURL, onsenGopts, ts, loader, hls)
 		if err != nil {
 			err = errors.Wrap(err, "onsen.dl.tsparse")
 			return
 		}
 
 		filteredCount := len(keys) + len(audio)
-		keys = common.FilterChunks(keys, hls)
-		audio = common.FilterChunks(audio, hls)
+		keys = FilterChunks(keys, hls)
+		audio = FilterChunks(audio, hls)
 		if count := filteredCount - (len(keys) + len(audio)); count > 0 {
 			fmt.Printf("already loaded %d files: continue...\n", count)
 		}
@@ -102,7 +101,7 @@ func (uc *OnsenUsecase) DownloadEpisode(loader types.Loader, hls types.AudioHLS,
 		for idx := range links {
 			file := &entity.Entity{
 				Type:    entity.FileEntity,
-				Gopts:   gopts,
+				Gopts:   onsenGopts,
 				Loader:  loader,
 				Workdir: wd,
 

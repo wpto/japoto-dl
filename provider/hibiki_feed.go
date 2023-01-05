@@ -1,4 +1,4 @@
-package hibiki
+package provider
 
 import (
 	"reflect"
@@ -13,7 +13,7 @@ type HibikiShowAccess struct {
 
 func (sa *HibikiShowAccess) GetShow(loader model.Loader) (model.Show, error) {
 	resObj := HibikiShow{}
-	err := loader.JSON("https://vcms-api.hibiki-radio.jp/api/v1/programs/"+sa.AccessId, &resObj, gopts)
+	err := loader.JSON("https://vcms-api.hibiki-radio.jp/api/v1/programs/"+sa.AccessId, &resObj, hibikiGopts)
 	if err != nil {
 		return nil, errors.Wrap(err, "hibiki.getshow")
 	}
@@ -41,7 +41,7 @@ func (sa *HibikiShowAccess) ShowId() string {
 
 func (p *Hibiki) GetFeed(loader model.Loader) ([]model.ShowAccess, error) {
 	resObj := []HibikiShowAccess{}
-	err := loader.JSON("https://vcms-api.hibiki-radio.jp/api/v1//programs?limit=99&page=1", &resObj, gopts)
+	err := loader.JSON("https://vcms-api.hibiki-radio.jp/api/v1//programs?limit=99&page=1", &resObj, hibikiGopts)
 	if err != nil {
 		return nil, errors.Wrap(err, "hibiki.feed")
 	}

@@ -1,4 +1,4 @@
-package hibiki
+package provider
 
 import (
 	"fmt"
@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/pgeowng/japoto-dl/model"
-	"github.com/pgeowng/japoto-dl/provider/common"
 	"github.com/pkg/errors"
 )
 
@@ -89,7 +88,7 @@ func (m *HibikiEpisodeMedia) PPrint() model.PPrintRow {
 }
 
 func (m *HibikiEpisodeMedia) EpIdx() string {
-	return common.EncodeIdx(m.epRef.Id, m.Id)
+	return EncodeIdx(m.epRef.Id, m.Id)
 }
 
 func (m *HibikiEpisodeMedia) PlaylistURL() *string {

@@ -2,8 +2,6 @@ package provider
 
 import (
 	"github.com/pgeowng/japoto-dl/model"
-	"github.com/pgeowng/japoto-dl/provider/hibiki"
-	"github.com/pgeowng/japoto-dl/provider/onsen"
 )
 
 type Provider interface {
@@ -18,11 +16,11 @@ type Providers struct {
 
 func NewProviders() *Providers {
 	return &Providers{
-		Onsen:  onsen.NewOnsen(),
-		Hibiki: hibiki.NewHibiki(),
+		Onsen:  NewOnsen(),
+		Hibiki: NewHibiki(),
 	}
 }
 
 func NewProvidersList() []Provider {
-	return []Provider{onsen.NewOnsen(), hibiki.NewHibiki()}
+	return []Provider{NewOnsen(), NewHibiki()}
 }

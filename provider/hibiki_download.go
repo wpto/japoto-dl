@@ -1,11 +1,10 @@
-package hibiki
+package provider
 
 import (
 	"fmt"
 
 	"github.com/pgeowng/japoto-dl/model"
 	"github.com/pgeowng/japoto-dl/pkg/worker"
-	"github.com/pgeowng/japoto-dl/provider/common"
 	"github.com/pgeowng/japoto-dl/workdir"
 
 	"github.com/pgeowng/japoto-dl/internal/entity"
@@ -27,7 +26,7 @@ func (uc *HibikiUsecase) DownloadEpisode(loader types.Loader, hls types.AudioHLS
 
 	playlistURL := *(ep.PlaylistURL())
 
-	tsaudio, err := common.LoadPlaylist(playlistURL, gopts, loader, hls)
+	tsaudio, err := LoadPlaylist(playlistURL, hibikiGopts, loader, hls)
 	if err != nil {
 		return
 	}
@@ -43,7 +42,7 @@ func (uc *HibikiUsecase) DownloadEpisode(loader types.Loader, hls types.AudioHLS
 	{
 		image := &entity.Entity{
 			Type:    entity.FileEntity,
-			Gopts:   gopts,
+			Gopts:   hibikiGopts,
 			Loader:  loader,
 			Workdir: wd,
 
@@ -58,14 +57,14 @@ func (uc *HibikiUsecase) DownloadEpisode(loader types.Loader, hls types.AudioHLS
 		var keys []model.File
 		var audio []model.File
 		var tsaudioUrl string
-		keys, audio, tsaudioUrl, err = common.LoadTSAudio(playlistURL, gopts, ts, loader, hls)
+		keys, audio, tsaudioUrl, err = LoadTSAudio(playlistURL, hibikiGopts, ts, loader, hls)
 		if err != nil {
 			return
 		}
 
 		filteredCount := len(keys) + len(audio)
-		keys = common.FilterChunks(keys, hls)
-		audio = common.FilterChunks(audio, hls)
+		keys = FilterChunks(keys, hls)
+		audio = FilterChunks(audio, hls)
 		if count := filteredCount - (len(keys) + len(audio)); count > 0 {
 			fmt.Printf("already loaded %d files: continue...\n", count)
 		}
@@ -81,7 +80,7 @@ func (uc *HibikiUsecase) DownloadEpisode(loader types.Loader, hls types.AudioHLS
 		for idx := range links {
 			file := &entity.Entity{
 				Type:    entity.FileEntity,
-				Gopts:   gopts,
+				Gopts:   hibikiGopts,
 				Loader:  loader,
 				Workdir: wd,
 

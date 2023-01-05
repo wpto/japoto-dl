@@ -1,10 +1,9 @@
-package onsen
+package provider
 
 import (
 	"fmt"
 
 	"github.com/pgeowng/japoto-dl/model"
-	"github.com/pgeowng/japoto-dl/provider/common"
 	"github.com/pkg/errors"
 )
 
@@ -15,12 +14,12 @@ func (show *OnsenShow) LoadImage(loader model.Loader, workdir model.WorkdirBase)
 		return errors.New("empty image url")
 	}
 
-	imageBody, err := loader.Raw(url, gopts)
+	imageBody, err := loader.Raw(url, onsenGopts)
 	if err != nil {
 		return errors.Wrap(err, "onsen.img")
 	}
 
-	ext := common.GuessContentType(imageBody)
+	ext := GuessContentType(imageBody)
 	filename := fmt.Sprintf("%s--%s%s", show.Provider(), show.ShowId(), ext)
 
 	return errors.Wrap(workdir.SaveRaw(filename, imageBody), "onsen.img")

@@ -1,4 +1,4 @@
-package onsen
+package provider
 
 type Onsen struct{}
 

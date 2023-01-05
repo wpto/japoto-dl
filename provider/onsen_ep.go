@@ -1,4 +1,4 @@
-package onsen
+package provider
 
 import (
 	"fmt"
@@ -7,7 +7,6 @@ import (
 	"strconv"
 
 	"github.com/pgeowng/japoto-dl/model"
-	"github.com/pgeowng/japoto-dl/provider/common"
 	"github.com/pkg/errors"
 )
 
@@ -167,5 +166,5 @@ func (ep *OnsenEpisode) Show() model.Show {
 }
 
 func (ep *OnsenEpisode) EpIdx() string {
-	return common.EncodeIdx(ep.Id)
+	return EncodeIdx(ep.Id)
 }

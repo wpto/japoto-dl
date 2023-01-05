@@ -1,10 +1,9 @@
-package hibiki
+package provider
 
 import (
 	"fmt"
 
 	"github.com/pgeowng/japoto-dl/model"
-	"github.com/pgeowng/japoto-dl/provider/common"
 	"github.com/pkg/errors"
 )
 
@@ -41,11 +40,11 @@ func loadimg(loader model.Loader, workdir model.WorkdirBase, url string, filenam
 		return errors.New("no image")
 	}
 
-	imageBody, err := loader.Raw(url, gopts)
+	imageBody, err := loader.Raw(url, hibikiGopts)
 	if err != nil {
 		return err
 	}
 
-	ext := common.GuessContentType(imageBody)
+	ext := GuessContentType(imageBody)
 	return workdir.SaveRaw(filename+ext, imageBody)
 }

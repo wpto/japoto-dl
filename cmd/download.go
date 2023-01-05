@@ -11,8 +11,6 @@ import (
 	"github.com/pgeowng/japoto-dl/dl"
 	"github.com/pgeowng/japoto-dl/model"
 	"github.com/pgeowng/japoto-dl/provider"
-	"github.com/pgeowng/japoto-dl/provider/hibiki"
-	"github.com/pgeowng/japoto-dl/provider/onsen"
 	"github.com/pgeowng/japoto-dl/repo/archive"
 	"github.com/pgeowng/japoto-dl/repo/status"
 	"github.com/pgeowng/japoto-dl/tasks"
@@ -264,11 +262,11 @@ func (l *EpisodeLoader) LoadEpisode(ep model.Episode) error {
 		var ii interface{} = ep
 		var err error
 		switch v := ii.(type) {
-		case *hibiki.HibikiEpisodeMedia:
-			hibikiUC := hibiki.HibikiUsecase{}
+		case *provider.HibikiEpisodeMedia:
+			hibikiUC := provider.HibikiUsecase{}
 			err = hibikiUC.DownloadEpisode(d, t.AudioHLS(), status, v, wdHLS)
-		case *onsen.OnsenEpisode:
-			onsenUC := onsen.OnsenUsecase{}
+		case *provider.OnsenEpisode:
+			onsenUC := provider.OnsenUsecase{}
 			err = onsenUC.DownloadEpisode(d, t.AudioHLS(), status, v, wdHLS)
 		default:
 			fmt.Printf("Provider %s download is not implemented\n", ep.Show().Provider())
