@@ -2,9 +2,9 @@ package cmd
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/pgeowng/japoto-dl/dl"
-	"github.com/pgeowng/japoto-dl/model"
 	"github.com/pgeowng/japoto-dl/provider"
 	"github.com/pgeowng/japoto-dl/repo/status"
 	"github.com/spf13/cobra"
@@ -29,15 +29,21 @@ func listRun(cmd *cobra.Command, args []string) {
 	status := &status.ErrorPrintLine{}
 
 	sm := &ShowMapper{dl: d, providers: providers, pl: status}
-	sm.MapShows(func(show model.Show) error {
+	shows, err := sm.MapShows()
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+
+	for _, show := range shows {
 		fmt.Println(show.PPrint().String())
 		eps, err := show.GetEpisodes(d)
 		if err != nil {
 			fmt.Printf("GetEpisodes: error=%v\n", err)
 		}
+
 		for _, ep := range eps {
 			fmt.Println(ep.PPrint().String())
 		}
-		return nil
-	})
+	}
 }

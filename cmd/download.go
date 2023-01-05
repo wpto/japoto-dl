@@ -109,7 +109,19 @@ func downloadRun(cmd *cobra.Command, args []string) {
 		pl:        status,
 	}
 
-	sm.MapEpisodes(epLoader.LoadEpisode)
+	eps, err := sm.MapEpisodes()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	for _, ep := range eps {
+		err := epLoader.LoadEpisode(ep)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+	}
 
 	fmt.Printf("\nloaded. waiting ffmpeg...\n")
 	ffwg.Wait()

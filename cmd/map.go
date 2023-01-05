@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/pgeowng/japoto-dl/model"
 	"github.com/pgeowng/japoto-dl/provider"
@@ -44,20 +45,25 @@ func FilterShowId(src []model.ShowAccess, filter []string) []model.ShowAccess {
 	}
 	return result
 }
-func (m *ShowMapper) MapEpisodes(processEpisode func(ep model.Episode) error) {
-	dl := m.dl
+func (m *ShowMapper) MapEpisodes() (result []model.Episode, err error) {
+	shows, err := m.MapShows()
+	if err != nil {
+		log.Println("Map Episodes: map shows failed")
+		return
+	}
 
-	m.MapShows(func(show model.Show) error {
-		eps, err := show.GetEpisodes(dl)
+	for _, show := range shows {
+		var eps []model.Episode
+		eps, err := show.GetEpisodes(m.dl)
 		if err != nil {
 			fmt.Println("show.GetEpisodes: error: %v", err)
-			return err
+			return nil, err
 		}
-		for _, ep := range eps {
-			processEpisode(ep)
-		}
-		return nil
-	})
+
+		result = append(result, eps...)
+	}
+
+	return
 }
 
 type ShowMapper struct {
@@ -66,7 +72,9 @@ type ShowMapper struct {
 	pl        model.PrintLine
 }
 
-func (m *ShowMapper) MapShows(processShow func(ep model.Show) error) {
+func (m *ShowMapper) MapShows() (result []model.Show, err error) {
+	result = make([]model.Show, 0, 10)
+
 	dl := m.dl
 	providers := m.providers
 	pl := m.pl
@@ -78,20 +86,23 @@ func (m *ShowMapper) MapShows(processShow func(ep model.Show) error) {
 		shows, err := prov.GetFeed(dl)
 		if err != nil {
 			pl.Error(errors.Errorf("err: %v", err))
-			break
+			return nil, err
 		}
 		shows = FilterShowId(shows, FilterShowIdList)
 
 		for _, showAccess := range shows {
 			pl.SetPrefix(fmt.Sprintf("%s/%s", prov.Label(), showAccess.ShowId()))
 			pl.Status("loading show")
+
 			show, err := showAccess.GetShow(dl)
 			if err != nil {
 				pl.Error(errors.Errorf("showAccess: %v", err))
-				break
+				return nil, err
 			}
 
-			processShow(show)
+			result = append(result, show)
 		}
 	}
+
+	return
 }

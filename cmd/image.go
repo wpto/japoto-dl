@@ -1,8 +1,9 @@
 package cmd
 
 import (
+	"log"
+
 	"github.com/pgeowng/japoto-dl/dl"
-	"github.com/pgeowng/japoto-dl/model"
 	"github.com/pgeowng/japoto-dl/provider"
 	"github.com/pgeowng/japoto-dl/repo/status"
 	"github.com/pgeowng/japoto-dl/workdir/wd"
@@ -30,10 +31,16 @@ func imageRun(cmd *cobra.Command, args []string) {
 	wd1 := wd.NewWd("./", "")
 
 	sm := &ShowMapper{dl: d, providers: providers, pl: status}
-	sm.MapShows(func(show model.Show) error {
+	shows, err := sm.MapShows()
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+
+	for _, show := range shows {
 		if err := show.LoadImage(d, wd1); err != nil {
-			return err
+			log.Fatal(err)
+			return
 		}
-		return nil
-	})
+	}
 }
