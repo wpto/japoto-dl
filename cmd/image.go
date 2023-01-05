@@ -29,11 +29,11 @@ func imageRun(cmd *cobra.Command, args []string) {
 	status := &status.ErrorPrintLine{}
 	wd1 := wd.NewWd("./", "")
 
-	MapShow(d, providers, status, func(show model.Show) error {
+	sm := &ShowMapper{dl: d, providers: providers, pl: status}
+	sm.MapShows(func(show model.Show) error {
 		if err := show.LoadImage(d, wd1); err != nil {
 			return err
 		}
 		return nil
 	})
-
 }

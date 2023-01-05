@@ -28,7 +28,8 @@ func listRun(cmd *cobra.Command, args []string) {
 	providers := provider.NewProvidersList()
 	status := &status.ErrorPrintLine{}
 
-	MapShow(d, providers, status, func(show model.Show) error {
+	sm := &ShowMapper{dl: d, providers: providers, pl: status}
+	sm.MapShows(func(show model.Show) error {
 		fmt.Println(show.PPrint().String())
 		eps, err := show.GetEpisodes(d)
 		if err != nil {

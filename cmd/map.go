@@ -44,8 +44,10 @@ func FilterShowId(src []model.ShowAccess, filter []string) []model.ShowAccess {
 	}
 	return result
 }
-func MapEpisode(dl model.Loader, providers []provider.Provider, pl model.PrintLine, processEpisode func(ep model.Episode) error) {
-	MapShow(dl, providers, pl, func(show model.Show) error {
+func (m *ShowMapper) MapEpisodes(processEpisode func(ep model.Episode) error) {
+	dl := m.dl
+
+	m.MapShows(func(show model.Show) error {
 		eps, err := show.GetEpisodes(dl)
 		if err != nil {
 			fmt.Println("show.GetEpisodes: error: %v", err)
@@ -58,7 +60,17 @@ func MapEpisode(dl model.Loader, providers []provider.Provider, pl model.PrintLi
 	})
 }
 
-func MapShow(dl model.Loader, providers []provider.Provider, pl model.PrintLine, processShow func(show model.Show) error) {
+type ShowMapper struct {
+	dl        model.Loader
+	providers []provider.Provider
+	pl        model.PrintLine
+}
+
+func (m *ShowMapper) MapShows(processShow func(ep model.Show) error) {
+	dl := m.dl
+	providers := m.providers
+	pl := m.pl
+
 	providers = FilterProvider(providers, FilterProviderList)
 	for _, prov := range providers {
 		pl.SetPrefix(prov.Label())

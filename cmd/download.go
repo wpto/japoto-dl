@@ -105,7 +105,13 @@ func downloadRun(cmd *cobra.Command, args []string) {
 		Loader:             d,
 	}
 
-	MapEpisode(d, providers, status, epLoader.LoadEpisode)
+	sm := ShowMapper{
+		dl:        d,
+		providers: providers,
+		pl:        status,
+	}
+
+	sm.MapEpisodes(epLoader.LoadEpisode)
 
 	fmt.Printf("\nloaded. waiting ffmpeg...\n")
 	ffwg.Wait()
