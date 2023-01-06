@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"sort"
@@ -12,12 +13,13 @@ import (
 	"github.com/pgeowng/japoto-dl/model"
 	"github.com/pgeowng/japoto-dl/provider"
 	"github.com/pgeowng/japoto-dl/repo/archive"
-	"github.com/pgeowng/japoto-dl/repo/status"
+	status1 "github.com/pgeowng/japoto-dl/repo/status"
 	"github.com/pgeowng/japoto-dl/tasks"
 	"github.com/pgeowng/japoto-dl/workdir"
 	"github.com/pgeowng/japoto-dl/workdir/muxer"
 	"github.com/pgeowng/japoto-dl/workdir/wd"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
 
@@ -76,7 +78,7 @@ func downloadRun(cmd *cobra.Command, args []string) {
 	providers := provider.NewProvidersList()
 
 	// status := &printline.PrintLine{}
-	status := status.New(os.Stdout)
+	status := status1.New(os.Stdout)
 
 	db, err := archive.CreateDB("./japoto-archive.db")
 	if err != nil {
@@ -109,17 +111,17 @@ func downloadRun(cmd *cobra.Command, args []string) {
 		pl:        status,
 	}
 
-	eps, err := sm.MapEpisodes()
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
+	ctx := context.Background()
 
-	for _, ep := range eps {
+	epChan := sm.GetEpisodeChan(ctx)
+	go sm.RunEpisodeWorker(ctx)
+
+	log.Debug().Msg("debug: reading episode channel")
+	for ep := range epChan {
+		log.Debug().Msgf("debug: got episode: %v", ep)
 		err := epLoader.LoadEpisode(ep)
 		if err != nil {
 			fmt.Println(err)
-			return
 		}
 	}
 
@@ -140,7 +142,7 @@ func downloadRun(cmd *cobra.Command, args []string) {
 }
 
 type EpisodeLoader struct {
-	Status             *status.PrintLine
+	Status             *status1.PrintLine
 	BeforeDateCallback func(date time.Time) bool
 	ArchiveRepo        archive.Interface
 	Loader             *dl.Grequests
@@ -155,6 +157,7 @@ func (l *EpisodeLoader) LoadEpisode(ep model.Episode) error {
 	status.SetPrefix(ep.EpId())
 	status.Status("loading ep")
 	if !ep.CanDownload() {
+		log.Info().Msgf("ep %s is not downloadable", ep.EpId())
 		return errors.New("cant load - skip")
 	}
 
@@ -266,32 +269,38 @@ func (l *EpisodeLoader) LoadEpisode(ep model.Episode) error {
 
 	// statusRepo := status.NewLoadStatus(ep.Show().Provider(), ep.EpId())
 
-	status.SetEp(ep.Show().Provider(), ep.EpIdx())
+	var metric status1.Metric = status1.NewMetric()
+
+	m := metric.
+		WithLabel("provider", ep.Show().Provider()).
+		WithLabel("show", ep.Show().ShowId()).
+		WithLabel("episode", ep.EpIdx())
 
 	t := tasks.NewTasks(wdHLS)
 	if stageDownload && !OnlyMux {
-		status.AddLoadedCount()
+		m.Inc("load_needed")
+
 		var ii interface{} = ep
 		var err error
 		switch v := ii.(type) {
 		case *provider.HibikiEpisodeMedia:
 			hibikiUC := provider.HibikiUsecase{}
-			err = hibikiUC.DownloadEpisode(d, t.AudioHLS(), status, v, wdHLS)
+			err = hibikiUC.DownloadEpisode(d, t.AudioHLS(), m, v, wdHLS)
 		case *provider.OnsenEpisode:
 			onsenUC := provider.OnsenUsecase{}
-			err = onsenUC.DownloadEpisode(d, t.AudioHLS(), status, v, wdHLS)
+			err = onsenUC.DownloadEpisode(d, t.AudioHLS(), m, v, wdHLS)
 		default:
 			fmt.Printf("Provider %s download is not implemented\n", ep.Show().Provider())
 		}
 		// err := ep.Download(d, t, status)
-		status.AddLoaded()
+		metric.Inc("loaded")
 		if err != nil {
 			return status.Error(errors.Errorf("error - %s\n", err))
 		}
 	}
 
 	ffwg.Add(1)
-	status.AddMuxedCount()
+	metric.Inc("mux_needed")
 	go func() {
 		var err error
 		if stageMux {
@@ -327,7 +336,7 @@ func (l *EpisodeLoader) LoadEpisode(ep model.Episode) error {
 		}
 
 		ffwg.Done()
-		status.AddMuxed()
+		metric.Inc("muxed")
 	}()
 
 	return nil

@@ -8,6 +8,7 @@ import (
 	"github.com/pgeowng/japoto-dl/internal/types"
 	"github.com/pgeowng/japoto-dl/model"
 	"github.com/pgeowng/japoto-dl/pkg/worker"
+	"github.com/pgeowng/japoto-dl/repo/status"
 	"github.com/pgeowng/japoto-dl/workdir"
 	"github.com/pkg/errors"
 )
@@ -20,7 +21,7 @@ var onsenGopts *model.LoaderOpts = &model.LoaderOpts{
 
 type OnsenUsecase struct{}
 
-func (uc *OnsenUsecase) DownloadEpisode(loader types.Loader, hls types.AudioHLS, status types.LoadStatus, ep *OnsenEpisode, wd workdir.WorkdirHLS) (err error) {
+func (uc *OnsenUsecase) DownloadEpisode(loader types.Loader, hls types.AudioHLS, metric status.Metric, ep *OnsenEpisode, wd workdir.WorkdirHLS) (err error) {
 
 	defer func() {
 		if err != nil {
@@ -96,7 +97,8 @@ func (uc *OnsenUsecase) DownloadEpisode(loader types.Loader, hls types.AudioHLS,
 		links := []model.File{}
 		links = append(links, keys...)
 		links = append(links, audio...)
-		status.Total(len(links))
+
+		metric.Set("total", float32(len(links)))
 
 		for idx := range links {
 			file := &entity.Entity{
@@ -116,7 +118,7 @@ func (uc *OnsenUsecase) DownloadEpisode(loader types.Loader, hls types.AudioHLS,
 					return fmt.Errorf("Load worker: %w", err)
 				}
 
-				status.Inc(1)
+				metric.Inc("progress")
 				return nil
 			}
 

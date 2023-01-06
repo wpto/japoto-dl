@@ -3,6 +3,8 @@ package status
 import (
 	"fmt"
 	"io"
+
+	"github.com/rs/zerolog/log"
 )
 
 type PrintLine struct {
@@ -135,4 +137,35 @@ func (e *ErrorPrintLine) Status(str string)       {}
 func (e *ErrorPrintLine) Error(err error) error {
 	fmt.Printf("%s\n", err.Error())
 	return err
+}
+
+type Metric interface {
+	Set(label string, value float32)
+	Add(label string, value float32)
+	Inc(label string)
+	WithLabel(label string, value string) Metric
+}
+
+type MetricImpl struct {
+}
+
+func NewMetric() Metric {
+	return &MetricImpl{}
+}
+
+func (m *MetricImpl) Set(label string, value float32) {
+	log.Debug().Str("metric", label).Float32("set", value).Msg("set metric")
+}
+
+func (m *MetricImpl) Add(label string, value float32) {
+	log.Debug().Str("metric", label).Float32("add", value).Msg("add metric")
+}
+
+func (m *MetricImpl) Inc(label string) {
+	log.Debug().Str("metric", label).Float32("inc", 1.0).Msg("inc metric")
+}
+
+func (m *MetricImpl) WithLabel(label string, value string) Metric {
+	log.Debug().Str("label", label).Str("value", value).Msg("set label")
+	return m
 }

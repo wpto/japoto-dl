@@ -9,6 +9,7 @@ import (
 
 	"github.com/pgeowng/japoto-dl/internal/entity"
 	"github.com/pgeowng/japoto-dl/internal/types"
+	"github.com/pgeowng/japoto-dl/repo/status"
 )
 
 const (
@@ -17,7 +18,7 @@ const (
 
 type HibikiUsecase struct{}
 
-func (uc *HibikiUsecase) DownloadEpisode(loader types.Loader, hls types.AudioHLS, status types.LoadStatus, ep *HibikiEpisodeMedia, wd workdir.WorkdirHLS) (err error) {
+func (uc *HibikiUsecase) DownloadEpisode(loader types.Loader, hls types.AudioHLS, metric status.Metric, ep *HibikiEpisodeMedia, wd workdir.WorkdirHLS) (err error) {
 	defer func() {
 		if err != nil {
 			err = fmt.Errorf("HibikiUsecase.DownloadEpisode: %w", err)
@@ -74,7 +75,8 @@ func (uc *HibikiUsecase) DownloadEpisode(loader types.Loader, hls types.AudioHLS
 
 		links := append([]model.File{}, keys...)
 		links = append(links, audio...)
-		status.Total(len(links))
+
+		metric.Set("total", float32(len(links)))
 		// pl.SetChunkCount(len(links))
 
 		for idx := range links {
@@ -96,7 +98,7 @@ func (uc *HibikiUsecase) DownloadEpisode(loader types.Loader, hls types.AudioHLS
 					return fmt.Errorf("Load worker: %w", err)
 				}
 
-				status.Inc(1)
+				metric.Inc("progress")
 				return nil
 			}
 
