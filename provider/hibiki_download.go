@@ -16,18 +16,46 @@ const (
 	playCheckURL = "https://vcms-api.hibiki-radio.jp/api/v1/videos/play_check?video_id=%d"
 )
 
-type HibikiUsecase struct{}
+type GeneralLoader struct {
+	loader types.Loader
+	hls    types.AudioHLS
+	metric status.Metric
+	wd     workdir.WorkdirHLS
+}
 
-func (uc *HibikiUsecase) DownloadEpisode(loader types.Loader, hls types.AudioHLS, metric status.Metric, ep *HibikiEpisodeMedia, wd workdir.WorkdirHLS) (err error) {
+func NewGeneralLoader(loader types.Loader, hls types.AudioHLS, metric status.Metric, wd workdir.WorkdirHLS) *GeneralLoader {
+	return &GeneralLoader{
+		loader: loader,
+		hls:    hls,
+		metric: metric,
+		wd:     wd,
+	}
+}
+
+type DownloadEpisodeParams struct {
+	PlaylistURL    string
+	ImageURL       string
+	RequestOptions *model.LoaderOpts
+}
+
+func (uc *GeneralLoader) DownloadEpisode(ep DownloadEpisodeParams) (err error) {
+
+	ropts := ep.RequestOptions
+
+	loader := uc.loader
+	hls := uc.hls
+	metric := uc.metric
+	wd := uc.wd
+
 	defer func() {
 		if err != nil {
-			err = fmt.Errorf("HibikiUsecase.DownloadEpisode: %w", err)
+			err = fmt.Errorf("GeneralLoader.DownloadEpisode: %w", err)
 		}
 	}()
 
-	playlistURL := *(ep.PlaylistURL())
-
-	tsaudio, err := LoadPlaylist(playlistURL, hibikiGopts, loader, hls)
+	playlistURL := ep.PlaylistURL
+	fmt.Println("Using playlist url:", playlistURL)
+	tsaudio, err := LoadPlaylist(playlistURL, ropts, loader, hls)
 	if err != nil {
 		return
 	}
@@ -43,11 +71,11 @@ func (uc *HibikiUsecase) DownloadEpisode(loader types.Loader, hls types.AudioHLS
 	{
 		image := &entity.Entity{
 			Type:    entity.FileEntity,
-			Gopts:   hibikiGopts,
+			Gopts:   ropts,
 			Loader:  loader,
 			Workdir: wd,
 
-			URL: ep.showRef.PcImageUrl,
+			URL: ep.ImageURL,
 		}
 
 		load.Input <- image.DownloadImage
@@ -58,7 +86,7 @@ func (uc *HibikiUsecase) DownloadEpisode(loader types.Loader, hls types.AudioHLS
 		var keys []model.File
 		var audio []model.File
 		var tsaudioUrl string
-		keys, audio, tsaudioUrl, err = LoadTSAudio(playlistURL, hibikiGopts, ts, loader, hls)
+		keys, audio, tsaudioUrl, err = LoadTSAudio(playlistURL, ropts, ts, loader, hls)
 		if err != nil {
 			return
 		}
@@ -82,7 +110,7 @@ func (uc *HibikiUsecase) DownloadEpisode(loader types.Loader, hls types.AudioHLS
 		for idx := range links {
 			file := &entity.Entity{
 				Type:    entity.FileEntity,
-				Gopts:   hibikiGopts,
+				Gopts:   ropts,
 				Loader:  loader,
 				Workdir: wd,
 

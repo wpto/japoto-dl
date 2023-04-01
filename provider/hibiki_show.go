@@ -4,10 +4,13 @@ import (
 	"fmt"
 	"log"
 	"reflect"
+	"strings"
 
 	"github.com/pgeowng/japoto-dl/internal/types"
 	"github.com/pgeowng/japoto-dl/model"
 )
+
+var _ model.Show = (*HibikiShow)(nil)
 
 type HibikiShow struct {
 	AccessId string `json:"access_id"`
@@ -34,6 +37,27 @@ func (show *HibikiShow) Artists() []string {
 		}
 	}
 	return result
+}
+
+func (show *HibikiShow) GeneralPerformerInfo() []model.Performer {
+	result := []model.Performer{}
+	for _, cast := range show.Casts {
+		persona := model.Performer{
+			Name: cast.Name,
+		}
+
+		if cast.RollName != nil {
+			persona.Role = strings.TrimSpace(*cast.RollName)
+		}
+
+		result = append(result, persona)
+	}
+
+	return result
+}
+
+func (show *HibikiShow) GeneralPosterURL() string {
+	return show.PcImageUrl
 }
 
 func (show *HibikiShow) ShowTitle() string {

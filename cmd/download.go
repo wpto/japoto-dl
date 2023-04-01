@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pgeowng/japoto-dl/dl"
 	"github.com/pgeowng/japoto-dl/model"
+	"github.com/pgeowng/japoto-dl/pkg/dl"
 	"github.com/pgeowng/japoto-dl/provider"
 	"github.com/pgeowng/japoto-dl/repo/archive"
 	status1 "github.com/pgeowng/japoto-dl/repo/status"

@@ -5,10 +5,13 @@ import (
 	"reflect"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/pgeowng/japoto-dl/model"
 	"github.com/pkg/errors"
 )
+
+var _ model.Episode = (*OnsenEpisode)(nil)
 
 // !
 type OnsenEpisode struct {
@@ -43,6 +46,24 @@ func (ep *OnsenEpisode) Artists() []string {
 	for _, p := range ep.Guests {
 		if len(p.Name) > 0 {
 			result = append(result, p.Name)
+		}
+	}
+
+	return result
+}
+
+func (ep *OnsenEpisode) GeneralPerformers(showID int64, episodeID int64) []model.Performer {
+	result := []model.Performer{}
+
+	for _, p := range ep.Guests {
+		if p.Name != "" {
+			result = append(result, model.Performer{
+				ShowID:    showID,
+				Name:      p.Name,
+				Role:      "",
+				EpisodeID: episodeID,
+				Guest:     true,
+			})
 		}
 	}
 
@@ -93,6 +114,18 @@ func (ep *OnsenEpisode) Date() model.Date {
 	return result
 }
 
+func (ep *OnsenEpisode) LeastDate() (day, month, year int64) {
+	day = -1
+	month = -1
+	year = -1
+
+	if ep.DeliveryDate != nil {
+		_, _ = fmt.Sscanf(*ep.DeliveryDate, "%d/%d", &month, &day)
+	}
+
+	return
+}
+
 func parseDeliveryDate(date string) (*model.Date, error) {
 	re := regexp.MustCompile(`(\d+)/(\d+)`)
 
@@ -128,7 +161,7 @@ func (ep *OnsenEpisode) EpId() string {
 }
 
 func (ep *OnsenEpisode) EpTitle() string {
-	return ep.Title
+	return strings.TrimSpace(ep.Title)
 }
 
 func (ep *OnsenEpisode) PlaylistURL() *string {
@@ -167,4 +200,18 @@ func (ep *OnsenEpisode) Show() model.Show {
 
 func (ep *OnsenEpisode) EpIdx() string {
 	return EncodeIdx(ep.Id)
+}
+
+func (ep *OnsenEpisode) GetDownloadJobs(episodeID int64) []model.DownloadJob {
+	if ep.StreamingUrl == nil {
+		return []model.DownloadJob{}
+	}
+
+	return []model.DownloadJob{
+		{
+			EpisodeID:   episodeID,
+			PlaylistURL: *ep.StreamingUrl,
+			ImageURL:    ep.showRef.GeneralPosterURL(),
+		},
+	}
 }

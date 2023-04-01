@@ -1,6 +1,8 @@
 package provider
 
 import (
+	"encoding/json"
+	"fmt"
 	"reflect"
 
 	"github.com/pgeowng/japoto-dl/model"
@@ -11,12 +13,15 @@ type OnsenShowAccess struct {
 	DirectoryName string `json:"directory_name"`
 }
 
-func (sa *OnsenShowAccess) GetShow(loader model.Loader) (model.Show, error) {
+func (p *Onsen) GetShow(showName string) (model.Show, error) {
 	resObj := OnsenShow{}
-	err := loader.JSON("https://onsen.ag/web_api/programs/"+sa.DirectoryName, &resObj, nil)
+	err := p.loader.JSON("https://onsen.ag/web_api/programs/"+showName, &resObj, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "onsen.show")
 	}
+
+	b, _ := json.MarshalIndent(resObj, "", "  ")
+	fmt.Println(string(b))
 
 	for idx := range resObj.Contents {
 		resObj.Contents[idx].showRef = &resObj
@@ -44,6 +49,16 @@ func (p *Onsen) GetFeed(loader model.Loader) ([]model.ShowAccess, error) {
 		v := reflect.ValueOf(&resObj[i]).Interface()
 		c := v.(model.ShowAccess)
 		result = append(result, c)
+	}
+
+	return result, nil
+}
+
+func (p *Onsen) GetFeedW() ([]OnsenShowAccess, error) {
+	result := []OnsenShowAccess{}
+	err := p.loader.JSON("https://onsen.ag/web_api/programs/", &result, nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "onsen.feed.get")
 	}
 
 	return result, nil

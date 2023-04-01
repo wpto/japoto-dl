@@ -35,6 +35,30 @@ func (sa *HibikiShowAccess) GetShow(loader model.Loader) (model.Show, error) {
 	return c, nil
 }
 
+func (sa *Hibiki) GetShow(showName string) (model.Show, error) {
+	resObj := HibikiShow{}
+	err := sa.loader.JSON("https://vcms-api.hibiki-radio.jp/api/v1/programs/"+showName, &resObj, hibikiGopts)
+	if err != nil {
+		return nil, errors.Wrap(err, "hibiki.getshow")
+	}
+
+	if resObj.Episode.Video != nil {
+		resObj.Episode.Video.showRef = &resObj
+		resObj.Episode.Video.epRef = &resObj.Episode
+	}
+
+	if resObj.Episode.AdditionalVideo != nil {
+		resObj.Episode.AdditionalVideo.IsAdditional = true
+		resObj.Episode.AdditionalVideo.showRef = &resObj
+		resObj.Episode.AdditionalVideo.epRef = &resObj.Episode
+	}
+
+	v := reflect.ValueOf(&resObj).Interface()
+	c := v.(model.Show)
+
+	return c, nil
+}
+
 func (sa *HibikiShowAccess) ShowId() string {
 	return sa.AccessId
 }
@@ -51,6 +75,16 @@ func (p *Hibiki) GetFeed(loader model.Loader) ([]model.ShowAccess, error) {
 		v := reflect.ValueOf(&resObj[i]).Interface()
 		c := v.(model.ShowAccess)
 		result = append(result, c)
+	}
+
+	return result, nil
+}
+
+func (p *Hibiki) GetFeedW(loader model.Loader) ([]HibikiShowAccess, error) {
+	result := []HibikiShowAccess{}
+	err := loader.JSON("https://vcms-api.hibiki-radio.jp/api/v1//programs?limit=99&page=1", &result, hibikiGopts)
+	if err != nil {
+		return nil, errors.Wrap(err, "hibiki.feed")
 	}
 
 	return result, nil

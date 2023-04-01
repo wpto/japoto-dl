@@ -2,6 +2,7 @@ package provider
 
 import (
 	"reflect"
+	"strings"
 
 	"github.com/pgeowng/japoto-dl/model"
 )
@@ -99,6 +100,36 @@ func (show *OnsenShow) Artists() []string {
 	}
 
 	return result
+}
+
+func (show *OnsenShow) GeneralPerformerInfo() []model.Performer {
+	result := []model.Performer{}
+	for _, group := range show.PersonalityGroups {
+		for _, p := range group.Roles {
+			persona := model.Performer{}
+			persona.Name = strings.TrimSpace(p.Name)
+			if p.Role != nil && len(strings.TrimSpace(*p.Role)) > 0 {
+				persona.Role = strings.TrimSpace(*p.Role)
+			}
+			result = append(result, persona)
+		}
+	}
+
+	return result
+}
+
+func (show *OnsenShow) GeneralGuestInfo() []model.Performer {
+	result := []model.Performer{}
+	for _, p := range show.Guests {
+		result = append(result, model.Performer{
+			Name: strings.TrimSpace(p.Name),
+		})
+	}
+	return result
+}
+
+func (show *OnsenShow) GeneralPosterURL() string {
+	return show.ProgramInfo.Image.Url
 }
 
 func (show *OnsenShow) ShowId() string {

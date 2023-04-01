@@ -1,9 +1,15 @@
 package provider
 
-type Onsen struct{}
+import "github.com/pgeowng/japoto-dl/model"
 
-func NewOnsen() *Onsen {
-	return &Onsen{}
+type Onsen struct {
+	loader model.Loader
+}
+
+func NewOnsen(loader model.Loader) *Onsen {
+	return &Onsen{
+		loader: loader,
+	}
 }
 
 func (o *Onsen) Label() string {

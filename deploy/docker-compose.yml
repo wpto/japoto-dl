@@ -1,0 +1,11 @@
+version: "3.9"
+networks:
+  default:
+    name: japoto-nw
+
+services:
+  japoto-onsen:
+    container_name: japoto-onsen
+    build:
+      context: ../
+      dockerfile: ./japoto-dl.Dockerfile

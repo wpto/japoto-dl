@@ -14,13 +14,13 @@ type Providers struct {
 	Hibiki Provider
 }
 
-func NewProviders() *Providers {
+func NewProviders(loader model.Loader) *Providers {
 	return &Providers{
-		Onsen:  NewOnsen(),
-		Hibiki: NewHibiki(),
+		Onsen:  NewOnsen(loader),
+		Hibiki: NewHibiki(loader),
 	}
 }
 
-func NewProvidersList() []Provider {
-	return []Provider{NewOnsen(), NewHibiki()}
+func NewProvidersList(loader model.Loader) []Provider {
+	return []Provider{NewOnsen(loader), NewHibiki(loader)}
 }

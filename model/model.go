@@ -21,6 +21,9 @@ type Episode interface {
 	Show() Show
 
 	PPrint() PPrintRow
+
+	LeastDate() (day, month, year int64)
+	GetDownloadJobs(episodeID int64) []DownloadJob
 }
 
 type Show interface {
@@ -33,6 +36,9 @@ type Show interface {
 
 	PPrint() PPrintRow
 	Provider() string
+
+	GeneralPosterURL() string
+	GeneralPerformerInfo() []Performer
 }
 
 type ShowAccess interface {
@@ -106,4 +112,19 @@ type WorkdirFile interface {
 	WasWritten(name string) bool
 	AlreadyLoadedChunks() map[string]bool
 	WorkdirBase
+}
+
+type Performer struct {
+	ShowID int64
+	Name   string
+	Role   string
+
+	EpisodeID int64
+	Guest     bool
+}
+
+type DownloadJob struct {
+	EpisodeID   int64
+	PlaylistURL string
+	ImageURL    string
 }

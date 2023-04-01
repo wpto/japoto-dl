@@ -9,6 +9,8 @@ import (
 	"github.com/pkg/errors"
 )
 
+var _ model.Episode = (*HibikiEpisodeMedia)(nil)
+
 type HibikiEpisode struct {
 	Id   int    `json:"id"`
 	Name string `json:"name"`
@@ -53,6 +55,24 @@ func (m *HibikiEpisodeMedia) Date() model.Date {
 	}
 }
 
+func (m *HibikiEpisodeMedia) LeastDate() (day, month, year int64) {
+	day = -1
+	month = -1
+	year = -1
+
+	const longForm = "2006/01/02 15:04:05"
+	t, err := time.Parse(longForm, m.epRef.UpdatedAt)
+	if err != nil {
+		return
+	}
+
+	day = int64(t.Day())
+	month = int64(t.Month())
+	year = int64(t.Year())
+
+	return
+}
+
 func (m *HibikiEpisodeMedia) EpId() string {
 	return fmt.Sprintf("%s/%s", m.showRef.ShowId(), m.EpIdx())
 }
@@ -93,4 +113,18 @@ func (m *HibikiEpisodeMedia) EpIdx() string {
 
 func (m *HibikiEpisodeMedia) PlaylistURL() *string {
 	return m.URL
+}
+
+func (m *HibikiEpisodeMedia) GetDownloadJobs(episodeID int64) []model.DownloadJob {
+	if m.URL == nil {
+		return []model.DownloadJob{}
+	}
+
+	return []model.DownloadJob{
+		{
+			EpisodeID:   episodeID,
+			PlaylistURL: *m.URL,
+			ImageURL:    m.showRef.PcImageUrl,
+		},
+	}
 }

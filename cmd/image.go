@@ -3,7 +3,7 @@ package cmd
 import (
 	"log"
 
-	"github.com/pgeowng/japoto-dl/dl"
+	"github.com/pgeowng/japoto-dl/pkg/dl"
 	"github.com/pgeowng/japoto-dl/provider"
 	"github.com/pgeowng/japoto-dl/repo/status"
 	"github.com/pgeowng/japoto-dl/workdir/wd"
