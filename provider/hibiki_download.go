@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/pgeowng/japoto-dl/model"
@@ -38,7 +39,7 @@ type DownloadEpisodeParams struct {
 	RequestOptions *model.LoaderOpts
 }
 
-func (uc *GeneralLoader) DownloadEpisode(ep DownloadEpisodeParams) (err error) {
+func (uc *GeneralLoader) DownloadEpisode(ctx context.Context, ep DownloadEpisodeParams) (err error) {
 
 	ropts := ep.RequestOptions
 

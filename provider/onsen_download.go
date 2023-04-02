@@ -19,6 +19,8 @@ var onsenGopts *model.LoaderOpts = &model.LoaderOpts{
 	},
 }
 
+var OnsenGopts = onsenGopts
+
 type OnsenUsecase struct{}
 
 func (uc *OnsenUsecase) DownloadEpisode(loader types.Loader, hls types.AudioHLS, metric status.Metric, ep *OnsenEpisode, wd workdir.WorkdirHLS) (err error) {

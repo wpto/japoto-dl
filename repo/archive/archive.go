@@ -216,7 +216,12 @@ func (r *ArchiveRepo) InsertShow(ctx context.Context, source string, showName st
 	}
 	defer r.pool.Put(conn)
 
-	query := `insert into shows(source, show_name, inserted_at, updated_at) values ($source, $show_name, datetime('now'), '2020-01-01 00:00:00') on conflict(source, show_name) do nothing;`
+	query := `
+	  INSERT INTO shows(source, show_name, updated_at)
+		VALUES ($source, $show_name, '2020-01-01 00:00:00')
+		ON CONFLICT(source, show_name)
+		DO NOTHING;`
+
 	stmt := conn.Prep(query)
 	defer r.Finalize(stmt)
 
@@ -244,18 +249,24 @@ func (r *ArchiveRepo) LockShowsForUpdate(ctx context.Context, workerID string, s
 	defer r.pool.Put(conn)
 
 	// update shows set worker_id = 'fqwfg', updated_at = datetime('now', '+1 hour') from ( select source, show_name from shows where source = 'hibiki' and datetime(updated_at, '+1 hour') < datetime('now') limit 5 ) as src where shows.source = src.source and shows.show_name = src.show_name;
-	query := `update shows set worker_id = $worker_id,
-	updated_at = datetime('now', '+1 hour'),
-	state = 'ready'
-	where show_name in (
-		select show_name from shows
-		where source = $source
-		  and (
-		  	(datetime(updated_at, '+1 hour') < datetime('now') and worker_id = '')
-		    or (datetime(updated_at, '+2 hour') < datetime('now') and coalesce(worker_id, '') <> '')
+	query := `
+	  UPDATE shows SET
+		  worker_id = $worker_id,
+	    updated_at = datetime('now', '+1 hour'),
+	    state = 'ready'
+	WHERE show_name IN (
+		SELECT
+		  show_name
+		FROM
+		  shows
+		WHERE
+		  source = $source
+		  AND (
+		  	(updated_at < datetime('now') and worker_id = '')
+		    -- OR (datetime(updated_at, '+2 hour') < datetime('now') and coalesce(worker_id, '') <> '')
 		  )
-		limit 5 )
-		and shows.source = $source;`
+		LIMIT 5 )
+		AND shows.source = $source;`
 
 	stmt := conn.Prep(query)
 	defer func() {
@@ -356,7 +367,7 @@ func (r *ArchiveRepo) EnsurePersona(ctx context.Context, name string) error {
 	}
 	defer finish()
 
-	query := `insert into persona(name, inserted_at) values ($name, datetime('now')) on conflict(name) do nothing`
+	query := `insert into persona(name) values ($name) on conflict(name) do nothing`
 	stmt := conn.Prep(query)
 	defer r.Finalize(stmt)
 
@@ -430,8 +441,8 @@ func (r *ArchiveRepo) EnsurePersonaShowRelation(ctx context.Context, showID int6
 	}
 	defer finish()
 
-	query := `insert into persona_show(show_id, persona_id, inserted_at)
-	values ($show_id, $persona_id, datetime('now'))
+	query := `insert into persona_show(show_id, persona_id)
+	values ($show_id, $persona_id)
 	on conflict do nothing;`
 	stmt := conn.Prep(query)
 	defer r.Finalize(stmt)
@@ -457,7 +468,7 @@ func (r *ArchiveRepo) EnsureLatestKeyValue(ctx context.Context, showID int64, ke
 	}
 	defer finish()
 
-	query := `with 
+	query := `with
 		key_ids as (select id from show_keys where label = $key_label)
 		,new_values as (
 			select column1 as show_id,
@@ -478,7 +489,7 @@ func (r *ArchiveRepo) EnsureLatestKeyValue(ctx context.Context, showID int64, ke
 		  new_values.title,
 		  datetime('now') as inserted_at
 		from new_values
-		left join key_ids 
+		left join key_ids
 		left join old_values
     where old_values.title is null or old_values.title <> new_values.title`
 
@@ -518,7 +529,7 @@ func (r *ArchiveRepo) saveURLToBank(ctx context.Context, url string) (err error)
 	}
 	defer finish()
 
-	q := `insert into url_bank (url, inserted_at) values ($url, datetime('now'))`
+	q := `insert into url_bank (url) values ($url)`
 	stmt := conn.Prep(q)
 	defer r.Finalize(stmt)
 
@@ -667,14 +678,11 @@ func (r *ArchiveRepo) AddDownloadJob(ctx context.Context, job model.DownloadJob)
 	defer finish()
 
 	q := `insert into download_jobs
-        (ep_id, playlist_url, image_url, inserted_at, worker_id, updated_at, status)
-        select 
+        (ep_id, playlist_url, image_url, status)
+        select
           column1 as ep_id,
           pu.id as playlist_url,
           iu.id as image_url,
-          datetime('now') as inserted_at,
-          '' as worker_id,
-          datetime('now') as updated_at,
           'ready' as status
         from (values ($ep_id))
         left join url_bank as pu on pu.url = $playlist_url
@@ -718,20 +726,20 @@ func (r *ArchiveRepo) LockDownloadJobs(ctx context.Context, workerID string, sou
 
 	// update shows set worker_id = 'fqwfg', updated_at = datetime('now', '+1 hour') from ( select source, show_name from shows where source = 'hibiki' and datetime(updated_at, '+1 hour') < datetime('now') limit 5 ) as src where shows.source = src.source and shows.show_name = src.show_name;
 	query := `
-	update download_jobs set
-	  worker_id = $worker_id,
-	  updated_at = datetime('now', '+1 hour'),
-	  status = 'ready'
-	where id in (
-		select id from download_jobs
-		where
-			(status = '' or status = 'ready')
-		  and (
-		  	(datetime(updated_at, '+1 hour') < datetime('now') and worker_id = '')
-		    or (datetime(updated_at, '+2 hour') < datetime('now') and coalesce(worker_id, '') <> '')
-		  )
-		limit 5
-	);`
+	  UPDATE download_jobs SET
+	    worker_id = $worker_id,
+	    updated_at = datetime('now', '+1 hour'),
+	    status = 'ready'
+	  WHERE id IN (
+		  SELECT id
+			FROM download_jobs
+		  WHERE
+			  (status = '' or status = 'ready')
+		    AND (
+		  	  (datetime(updated_at, '+1 hour') < datetime('now') and worker_id = '')
+		      or (datetime(updated_at, '+2 hour') < datetime('now') and coalesce(worker_id, '') <> '')
+		    )
+		LIMIT 5);`
 
 	stmt := conn.Prep(query)
 	defer r.Finalize(stmt)

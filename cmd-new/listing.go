@@ -13,6 +13,9 @@ import (
 	"github.com/pgeowng/japoto-dl/pkg/dl"
 	"github.com/pgeowng/japoto-dl/provider"
 	"github.com/pgeowng/japoto-dl/repo/archive"
+	status1 "github.com/pgeowng/japoto-dl/repo/status"
+	"github.com/pgeowng/japoto-dl/workdir"
+	"github.com/pgeowng/japoto-dl/workdir/wd"
 )
 
 const (
@@ -42,6 +45,9 @@ type App struct {
 	loader model.Loader
 	hibiki *provider.Hibiki
 	onsen  *provider.Onsen
+
+	muxInput  chan MuxJob
+	muxWorker *MuxWorker
 }
 
 func NewApp() (*App, error) {
@@ -61,12 +67,18 @@ func NewApp() (*App, error) {
 	hibiki := provider.NewHibiki(loader)
 	onsen := provider.NewOnsen(loader)
 
+	status := status1.New(os.Stdout)
+	muxInput := make(chan MuxJob, 0)
+	muxWorker := NewMuxWorker(status, muxInput)
+
 	return &App{
-		db:     db,
-		arch:   arch,
-		loader: loader,
-		hibiki: hibiki,
-		onsen:  onsen,
+		db:        db,
+		arch:      arch,
+		loader:    loader,
+		hibiki:    hibiki,
+		onsen:     onsen,
+		muxInput:  muxInput,
+		muxWorker: muxWorker,
 	}, nil
 }
 func (a *App) Run(ctx context.Context) error {
@@ -116,9 +128,9 @@ func (a *App) Run(ctx context.Context) error {
 		return err
 	}
 
-	q := `insert into show_keys(id, label, inserted_at)
-	      values (1, 'title', datetime('now')),
-	             (2, 'poster', datetime('now'))
+	q := `insert into show_keys(id, label)
+	      values (1, 'title'),
+	             (2, 'poster')
 	      on conflict do nothing`
 	if err := a.arch.Exec(ctx, q); err != nil {
 		fmt.Println(err)
@@ -151,28 +163,37 @@ func (a *App) Run(ctx context.Context) error {
 	// if err := a.RunDownloadWorker(ctx); err != nil {
 	// 	fmt.Println(err)
 	// }
+	if err := a.RunOnsenGetFeed(ctx); err != nil {
+		fmt.Println(err)
+	}
 	for {
-
-		if err := a.RunDownloadWorker(ctx); err != nil {
+		// if err := a.RunGetRecentShows(ctx, a.onsen); err != nil {
+		// 	fmt.Println(err)
+		// }
+		downloadWorker := NewDownloadWorker(a.arch).WithPostDownloadHook(func(wdhls *workdir.Workdir, wd *wd.Wd) {
+			a.muxInput <- MuxJob{wdhls: wdhls, wd: wd}
+		})
+		if err := downloadWorker.RunDownloadWorker(ctx); err != nil {
 			fmt.Println(err)
 		}
+		time.Sleep(5 * time.Second)
 		select {
 		// case <-onsenTicker.C:
 		// 	if err := a.RunOnsenGetFeed(ctx); err != nil {
 		// 		fmt.Println(err)
 		// 	}
-		case <-hibikiTicker.C:
-			if err := a.RunHibikiGetFeed(ctx); err != nil {
-				fmt.Println(err)
-			}
+		// case <-hibikiTicker.C:
+		// 	if err := a.RunHibikiGetFeed(ctx); err != nil {
+		// 		fmt.Println(err)
+		// 	}
 		// case <-onsenShowTicker.C:
 		// 	if err := a.RunGetRecentShows(ctx, a.onsen); err != nil {
 		// 		fmt.Println(err)
 		// 	}
-		case <-hibikiShowTicker.C:
-			if err := a.RunGetRecentShows(ctx, a.hibiki); err != nil {
-				fmt.Println(err)
-			}
+		// case <-hibikiShowTicker.C:
+		// 	if err := a.RunGetRecentShows(ctx, a.hibiki); err != nil {
+		// 		fmt.Println(err)
+		// 	}
 		case <-stopChan:
 			fmt.Println("closing app by interrupt")
 			cancel()
@@ -184,28 +205,28 @@ func (a *App) Run(ctx context.Context) error {
 
 const createShowsTable = `create table if not exists shows (
 	id integer primary key autoincrement,
-	source text,
-	show_name text,
-	inserted_at text,
-	worker_id string,
-	state string,
-	updated_at text,
+	source text not null,
+	show_name text not null,
+	inserted_at text default current_timestamp not null,
+	worker_id string default '' not null,
+	state string default '' not null,
+	updated_at text default current_timestamp not null,
 	unique (source, show_name)
 )`
 
 const createPersonaTable = `create table if not exists persona (
   id integer primary key autoincrement,
-  name text,
-  inserted_at text,
+  name text not null,
+  inserted_at text default current_timestamp not null,
   unique (name)
 )`
 
 const createPersonaRoleTable = `create table if not exists persona_role (
   id integer primary key autoincrement,
-  name text,
-  show_id integer,
-  persona_id integer,
-  inserted_at text,
+  name text not null,
+  show_id integer not null,
+  persona_id integer not null,
+  inserted_at text default current_timestamp not null,
 
   foreign key (show_id) references shows (id),
   foreign key (persona_id) references persona (id),
@@ -213,12 +234,13 @@ const createPersonaRoleTable = `create table if not exists persona_role (
 )`
 
 // TODO: support persona that was in show but currency not presented
-//       probably episode based
+//
+//	probably episode based
 const createPersonaShowTable = `create table if not exists persona_show (
   id integer primary key autoincrement,
-  show_id integer,
-  persona_id integer,
-  inserted_at text,
+  show_id integer not null,
+  persona_id integer not null,
+  inserted_at text default current_timestamp not null,
 
   foreign key (show_id) references shows (id),
   foreign key (persona_id) references persona (id),
@@ -227,17 +249,17 @@ const createPersonaShowTable = `create table if not exists persona_show (
 
 const createShowKeyTable = `create table if not exists show_keys (
 	id integer primary key autoincrement,
-	label text,
-	inserted_at text,
+	label text not null,
+	inserted_at text default current_timestamp not null,
 	unique (label)
 )`
 
 const createShowKeyValueTable = `create table if not exists show_values (
   id integer primary key autoincrement,
-  show_id integer,
-  key integer,
-  value text,
-  inserted_at text,
+  show_id integer not null,
+  key integer not null,
+  value text not null,
+  inserted_at text default current_timestamp not null,
 
   foreign key (show_id) references shows (id),
   foreign key (key) references show_keys (id)
@@ -245,19 +267,19 @@ const createShowKeyValueTable = `create table if not exists show_values (
 
 const createURLBank = `create table if not exists url_bank (
 	id integer primary key autoincrement,
-	url text,
-	inserted_at text,
+	url text not null,
+	inserted_at text default current_timestamp not null,
 	unique (url)
 )`
 
 const createEpisodeTable = `create table if not exists show_episodes (
 	id integer primary key autoincrement,
-	show_id integer,
-  title text,
-  date_day integer,
-  date_month integer,
-  date_year integer,
-  inserted_at text,
+	show_id integer not null,
+  title text not null,
+  date_day integer not null,
+  date_month integer not null,
+  date_year integer not null,
+  inserted_at text default current_timestamp not null,
 
   foreign key (show_id) references shows (id),
   unique (show_id, title, date_day, date_month, date_year)
@@ -266,9 +288,9 @@ const createEpisodeTable = `create table if not exists show_episodes (
 const createPersonaGuestTable = `create table if not exists persona_guest(
   id integer primary key autoincrement
 
-  ep_id integer,
-  persona_id integer,
-  inserted_at text,
+  ep_id integer not null,
+  persona_id integer not null,
+  inserted_at text default current_timestamp not null,
 
   foreign key (ep_id) references show_episodes (id),
   foreign key (persona_id) references persona (id),
@@ -278,15 +300,15 @@ const createPersonaGuestTable = `create table if not exists persona_guest(
 const createDownloadJobTable = `create table if not exists download_jobs(
   id integer primary key autoincrement,
 
-  ep_id integer,
-  playlist_url integer,
-  image_url integer,
+  ep_id integer not null,
+  playlist_url integer not null,
+  image_url integer not null,
 
-  inserted_at text,
+  inserted_at text default current_timestamp not null,
 
-  worker_id text,
-  updated_at text,
-  status text,
+  worker_id text default '' not null,
+  updated_at text default current_timestamp not null,
+  status text default '' not null,
 
   foreign key (ep_id) references show_episodes(id),
   foreign key (playlist_url) references url_bank(id),

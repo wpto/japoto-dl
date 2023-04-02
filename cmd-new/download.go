@@ -13,27 +13,46 @@ import (
 	"github.com/pgeowng/japoto-dl/workdir/muxer"
 	"github.com/pgeowng/japoto-dl/workdir/wd"
 
+	"github.com/pgeowng/japoto-dl/repo/archive"
 	status1 "github.com/pgeowng/japoto-dl/repo/status"
 )
 
-func (a *App) RunDownloadWorker(ctx context.Context) error {
+type PostDownloadHook = func(wdhls *workdir.Workdir, wd *wd.Wd)
+
+type DownloadWorker struct {
+	repo             *archive.ArchiveRepo
+	postDownloadHook PostDownloadHook
+}
+
+func NewDownloadWorker(repo *archive.ArchiveRepo) *DownloadWorker {
+	return &DownloadWorker{
+		repo: repo,
+	}
+}
+
+func (a *DownloadWorker) WithPostDownloadHook(hook PostDownloadHook) *DownloadWorker {
+	a.postDownloadHook = hook
+	return a
+}
+
+func (a *DownloadWorker) RunDownloadWorker(ctx context.Context) error {
 	log.Printf("Download worker is running\n")
 
 	workerID := NewWorkerID()
 	workerID = "1"
 
-	if err := a.arch.LockDownloadJobs(ctx, workerID, "some source"); err != nil {
+	if err := a.repo.LockDownloadJobs(ctx, workerID, "some source"); err != nil {
 		fmt.Println(err)
 		return err
 	}
 
-	job, err := a.arch.GetLockedDownloadJob(ctx, workerID)
+	job, err := a.repo.GetLockedDownloadJob(ctx, workerID)
 	if err != nil {
 		fmt.Println(err)
 		return err
 	}
 
-	personas, err := a.arch.GetEpisodePersona(ctx, job.EpisodeLocalIdx)
+	personas, err := a.repo.GetEpisodePersona(ctx, job.EpisodeLocalIdx)
 	if err != nil {
 		fmt.Println(err)
 		return err
@@ -66,20 +85,20 @@ func (a *App) RunDownloadWorker(ctx context.Context) error {
 
 	genLoader := provider.NewGeneralLoader(loader, hls.AudioHLS(), metric, wd)
 
-	err = genLoader.DownloadEpisode(provider.DownloadEpisodeParams{
+	err = genLoader.DownloadEpisode(ctx, provider.DownloadEpisodeParams{
 		PlaylistURL:    job.PlaylistURL,
 		ImageURL:       job.ImageURL,
-		RequestOptions: provider.HibikiGopts,
+		RequestOptions: provider.OnsenGopts,
 	})
 	if err != nil {
 		fmt.Println(err)
-		if err := a.arch.UpdateLockedDownloadJob(ctx, job.JobID, "failed"); err != nil {
+		if err := a.repo.UpdateLockedDownloadJob(ctx, job.JobID, "failed"); err != nil {
 			fmt.Println("UpdateLockedDownloadJob: failed: %w", err)
 		}
 		return err
 	}
 
-	if err := a.arch.UpdateLockedDownloadJob(ctx, job.JobID, "done"); err != nil {
+	if err := a.repo.UpdateLockedDownloadJob(ctx, job.JobID, "done"); err != nil {
 		fmt.Println("UpdateLockedDownloadJob: failed: %w", err)
 	}
 
