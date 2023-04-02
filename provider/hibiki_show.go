@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/pgeowng/japoto-dl/internal/types"
+	"github.com/pgeowng/japoto-dl/internal/entity"
 	"github.com/pgeowng/japoto-dl/model"
 )
 
@@ -103,7 +103,7 @@ func (show *HibikiShow) GetEpisodes(loader model.Loader) (result []model.Episode
 	return result, nil
 }
 
-func loadCheckPlaylistURL(loader types.Loader, id int) (url string, err error) {
+func loadCheckPlaylistURL(loader entity.Loader, id int) (url string, err error) {
 	var checkObj struct {
 		PlaylistURL string `json:"playlist_url"`
 	}

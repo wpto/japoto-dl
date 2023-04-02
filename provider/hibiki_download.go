@@ -9,7 +9,6 @@ import (
 	"github.com/pgeowng/japoto-dl/workdir"
 
 	"github.com/pgeowng/japoto-dl/internal/entity"
-	"github.com/pgeowng/japoto-dl/internal/types"
 	"github.com/pgeowng/japoto-dl/repo/status"
 )
 
@@ -18,13 +17,13 @@ const (
 )
 
 type GeneralLoader struct {
-	loader types.Loader
-	hls    types.AudioHLS
+	loader entity.Loader
+	hls    entity.AudioHLS
 	metric status.Metric
 	wd     workdir.WorkdirHLS
 }
 
-func NewGeneralLoader(loader types.Loader, hls types.AudioHLS, metric status.Metric, wd workdir.WorkdirHLS) *GeneralLoader {
+func NewGeneralLoader(loader entity.Loader, hls entity.AudioHLS, metric status.Metric, wd workdir.WorkdirHLS) *GeneralLoader {
 	return &GeneralLoader{
 		loader: loader,
 		hls:    hls,

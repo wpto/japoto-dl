@@ -5,7 +5,6 @@ import (
 	"log"
 
 	"github.com/pgeowng/japoto-dl/internal/entity"
-	"github.com/pgeowng/japoto-dl/internal/types"
 	"github.com/pgeowng/japoto-dl/model"
 	"github.com/pgeowng/japoto-dl/pkg/worker"
 	"github.com/pgeowng/japoto-dl/repo/status"
@@ -23,7 +22,7 @@ var OnsenGopts = onsenGopts
 
 type OnsenUsecase struct{}
 
-func (uc *OnsenUsecase) DownloadEpisode(loader types.Loader, hls types.AudioHLS, metric status.Metric, ep *OnsenEpisode, wd workdir.WorkdirHLS) (err error) {
+func (uc *OnsenUsecase) DownloadEpisode(loader entity.Loader, hls entity.AudioHLS, metric status.Metric, ep *OnsenEpisode, wd workdir.WorkdirHLS) (err error) {
 
 	defer func() {
 		if err != nil {

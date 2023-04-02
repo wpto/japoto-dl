@@ -1,4 +1,4 @@
-package types
+package entity
 
 import "github.com/pgeowng/japoto-dl/model"
 
